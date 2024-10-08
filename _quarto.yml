@@ -1,0 +1,15 @@
+project:
+  type: book
+
+book:
+  title: "KAP1 in primates"
+  author: "Yao-Chung Chen"
+  date: "08/10/2024"
+  chapters:
+    - scripts/squire.qmd
+
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: scrreprt
