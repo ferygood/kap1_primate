@@ -42,4 +42,25 @@ Filters genomic coordinates of repeats of interest from repeatmasker, collapses 
 ``` bash
 # example of hg19
 squire Clean -r human -b hg19 -o hg19_clean -c 'DNA,LTR' -v
+
+# example of ponAbe2
+squire Clean -r orangutan/ponAbe2_rmsk.txt -b ponAbe2 -o orangutan_clean -c 'DNA,LTR,LINE,SINE,Other' -v
+```
+
+### 2. Quantification stage
+
+#### mapping
+
+Aligns RNA-seq reads to STAR index allowing for multiple alignments. The output is a .bam file
+
+``` bash
+squire Map -1 read1 -2 read2 -o oran_map -f orangutan -r 100 -b ponAbe2 -p 4 -v
+```
+
+#### quantifying
+
+quantifies RNA-seq reads aligning to TEs and genes. Outputs counts for RefSeq genes and TEs at the locus and subfamily levels. The read length is 100bp and sequencer is TrueSeq.
+
+``` bash
+squire Count -m oran_map -c orangutan_clean -o oran_count -f ponAbe2 -r 100 0b ponAbe2 -p 4 -s 1 -v
 ```
