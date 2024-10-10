@@ -59,5 +59,26 @@ squire Map -1 read1 -2 read2 -o oran_map -f orangutan -r 100 -b ponAbe2 -p 4 -v
 quantifies RNA-seq reads aligning to TEs and genes. Outputs counts for RefSeq genes and TEs at the locus and subfamily levels. The read length is 100bp and sequencer is TrueSeq.
 
 ``` bash
-squire Count -m oran_map -c orangutan_clean -o oran_count -f ponAbe2 -r 100 0b ponAbe2 -p 4 -s 1 -v
+squire Count -m oran_map -c orangutan_clean -o oran_count -f ponAbe2 -r 100 -b ponAbe2 -p 4 -s 1 -v
+```
+
+### 3. Manipulating data
+
+```{r}
+library(dplyr)
+library(twice)
+
+data("hmKZNFs337")
+
+df_te <- read.table("../oran_count/Orang_JingJing_Zeb2_neg_R1_TEcounts.txt", header=TRUE)
+
+df_gene <- read.table("../oran_count/Orang_JingJing_Zeb2_neg_R1_abund.txt", 
+                      sep = "\t", header = TRUE)
+df_kznf <- df_gene %>%
+    filter(Gene.ID %in% hmKZNFs337$external_gene_name) #51
+```
+
+```{r}
+df_te_filter <- df_te %>%
+    filter(score > 90)
 ```
