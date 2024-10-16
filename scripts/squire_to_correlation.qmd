@@ -1,0 +1,79 @@
+```{r}
+library(dplyr)
+library(TEKRABber)
+library(twice)
+```
+
+```{r}
+jaqo_TE <- read.table("../oran_count/jaqo/Orang_Jaqo_Zeb2_neg_R1_TEcounts.txt",
+                      header=T)
+jing_TE <- read.table("../oran_count/jingjing/Orang_JingJing_Zeb2_neg_R1_TEcounts.txt",
+                      header=T)
+guchi_TE <- read.table("../oran_count/guchi/Orang_Guchi_Zeb2_neg_R1_TEcounts.txt",
+                       header=T)
+```
+
+try to merge the data
+```{r}
+# TE
+df_oranTE <- jaqo_TE %>%
+    distinct(TE_ID, .keep_all = TRUE) %>%
+    select(c(9,10,11,4,5,18))
+
+jing_TE_distinct <- jing_TE %>%
+    distinct(TE_ID, .keep_all = TRUE)
+
+guchi_TE_distinct <- guchi_TE %>%
+    distinct(TE_ID, .keep_all = TRUE)
+
+df_oranTE_merge <- df_oranTE %>%
+    inner_join(jing_TE_distinct[,c(4,5,18)], join_by(TE_ID==TE_ID))
+
+df_oranTE_merge <- df_oranTE_merge %>%
+    inner_join(guchi_TE_distinct[,c(4,5,18)], join_by(TE_ID==TE_ID))
+
+df_oranTE_merge <- df_oranTE_merge %>%
+    filter(score.x > 50 & score.y > 50 & score > 50)
+
+# prepare input for correlation: df_oranTE_corrInput
+df_oranTE_corrInput <- df_oranTE_merge[,c(5,7,9)]
+rownames(df_oranTE_corrInput) <- df_oranTE_merge$TE_ID 
+
+```
+
+For merging gene data
+```{r}
+data("hmKZNFs337")
+jaqo_gene <- read.table("../oran_count/jaqo/Orang_Jaqo_Zeb2_neg_R1_refGenecounts.txt", sep="\t")
+
+jaqo_znf <- jaqo_gene %>% filter(V4 %in% hmKZNFs337$external_gene_name) #51
+
+jing_gene <- read.table("../oran_count/jingjing/Orang_JingJing_Zeb2_neg_R1_refGenecounts.txt", sep="\t")
+
+jing_znf <- jing_gene %>% filter(V4 %in% hmKZNFs337$external_gene_name) #51
+
+guchi_gene <- read.table("../oran_count/guchi/Orang_Guchi_Zeb2_neg_R1_refGenecounts.txt", sep="\t")
+
+guchi_znf <- guchi_gene %>% filter(V4 %in% hmKZNFs337$external_gene_name)
+
+#merge data for correlation input
+df_oranZNF <- jaqo_znf %>% 
+    select(c(4,5)) %>%
+    inner_join(jing_znf[,c(4,5)], join_by(V4==V4)) %>%
+    inner_join(guchi_znf[,c(4,5)], join_by(V4==V4))
+
+df_oranZNF_corrInput <- df_oranZNF %>% select(c(2,3,4))
+rownames(df_oranZNF_corrInput) <- df_oranZNF$V4
+```
+
+Run correlation analysis, 8765 TEs vs. 51 KRAB-ZNFs
+```{r}
+timestamp()
+oran_corr <- corrOrthologTE(
+    geneInput = df_oranZNF_corrInput,
+    teInput = df_oranTE_corrInput,
+    numCore = 4    
+)
+timestamp()
+```
+
