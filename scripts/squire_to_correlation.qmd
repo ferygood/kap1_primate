@@ -2,6 +2,8 @@
 library(dplyr)
 library(TEKRABber)
 library(twice)
+library(ggplot2)
+library(tidyr)
 ```
 
 ```{r}
@@ -66,14 +68,69 @@ df_oranZNF_corrInput <- df_oranZNF %>% select(c(2,3,4))
 rownames(df_oranZNF_corrInput) <- df_oranZNF$V4
 ```
 
-Run correlation analysis, 8765 TEs vs. 51 KRAB-ZNFs
+Run correlation analysis, 8765 TEs vs. 29 KRAB-ZNFs
 ```{r}
 timestamp()
+
+df_oranZNF_corrInput_nozero <- df_oranZNF_corrInput %>%
+    filter_all(all_vars(. != 0))
+
+df_oranTE_corrInput_nozero <- df_oranTE_corrInput %>%
+    filter_all(all_vars(. != 0))
+
 oran_corr <- corrOrthologTE(
-    geneInput = df_oranZNF_corrInput,
-    teInput = df_oranTE_corrInput,
+    geneInput = df_oranZNF_corrInput_nozero,
+    teInput = df_oranTE_corrInput_nozero,
     numCore = 4    
 )
 timestamp()
+```
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+#check the number
+#1. padj<0.05
+oran_corr %>% filter(padj<0.05) %>% nrow() #0
+
+#2. pvalue<0.05
+oran_corr %>% filter(pvalue<0.05) %>% nrow() #14420
+oran_corr_sig <- oran_corr %>% filter(pvalue<0.01) #2829
+
+df_temp <- data.frame(
+    gene = t(df_oranZNF_corrInput["ZNF7",]),
+    te = t(df_oranTE_corrInput["chr7|2155953|2156102|FLAM_C:Alu:SINE|238|-",]))
+
+colnames(df_temp) <- c("gene", "te")
+
+ggplot(df_temp, aes(x=te, y=gene)) +
+    geom_point() +
+    ylab("ZNF7") +
+    xlab("chr7|2155953|2156102|FLAM_C:Alu:SINE|238|-") +
+    theme_bw()
+```
+```{r}
+oran_corr_sig_pos <- oran_corr_sig %>% filter(coef>0)
+oran_corr_sig_neg <- oran_corr_sig %>% filter(coef<0)
+
+```
+
+
+
+```{r}
+chipexo <- read.csv("../tables/chipexo_PBD778.csv")
+
+oran_corr_sig %>% filter(geneName %in% chipexo$geneName) %>% distinct(geneName)
+```
+```{r}
+oran_corr_sig_preprocess <- oran_corr_sig %>%
+  mutate(TE_subfamily = sapply(
+      stringr::str_split(teName, "\\|"), function(x) stringr::str_extract(x[4], "^[^:]+"))) %>%
+  mutate(pair = paste0(TE_subfamily, ":", geneName)) %>%
+  filter(pair %in% chipexo$pair)
+
+
 ```
 
