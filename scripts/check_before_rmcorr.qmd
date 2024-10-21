@@ -1,0 +1,155 @@
+This script is for checking the expression profiles before using rmcorr software in primate B cells data.
+
+```{r}
+library(DESeq2)
+library(dplyr)
+library(twice)
+library(EnhancedVolcano)
+```
+
+Load expression profiles, and only select KRAB-ZNFs, KAP1, and ZEB2 from the data.
+
+```{r}
+data("hmKZNFs337")
+id_convert <- read.table("../zeb2_data/ids_names_extractedFromGTF.txt")
+
+df <- read.table("../zeb2_data/ReadCountTable_DESeq2_prefiltered_allSpecies.tsv",
+                  header=T, sep="\t")
+
+df_select_gene <- df %>%
+    inner_join(id_convert, join_by(X==V1)) %>%
+    filter(V2 %in% c(hmKZNFs337$external_gene_name, "TRIM28", "ZEB2")) #329
+```
+
+1. Do a PCA to see their expression variances
+
+```{r}
+library(ggplot2)
+
+df_pca_data_input <- df_select_gene[, 2:28]
+df_pca_data <- t(df_pca_data_input)
+rownames(df_pca_data) <- colnames(df_pca_data_input)
+pca_result <- prcomp(df_pca_data, center=TRUE, scale.=TRUE)
+
+pca_data <- as.data.frame(pca_result$x)
+pca_data$Sample <- c("H1_2", "H1_3", "H1_neg", "H2_2", "H2_3", "H2_neg",
+                     "H3_2", "H3_3", "H3_neg", "C_judith_2", "C_judtih_3", "C_judith_neg",
+                     "C_Leo_2", "C_Leo_3", "C_Leo_neg", "C_maryke_2", "C_maryke_3",
+                     "C_maryke_neg", "O_guchi_2", "O_guchi_3", "O_guchi_neg",
+                     "O_jaqo_2", "O_jaqo_3", "O_jaqo_neg", "O_jingjing_2", "O_jingjing_3",
+                     "O_jingjing_neg")
+pca_data$Group <- rep(c("Human", "Chimp", "Orangutan"), each=9)
+
+ggplot(pca_data, aes(x=PC1, y=PC2, label=Sample, color=Group)) +
+    geom_point(size=3) +
+    geom_text(vjust= -0.5) +
+    scale_color_manual(values=c("Human"="red", "Chimp"="blue", "Orangutan"="darkgreen")) +
+    theme_bw()
+
+```
+
+
+2. See how many differentially expressed ZNFs, including KAP1 and ZEB2.
+
+```{r}
+cts <- df %>%
+    inner_join(id_convert, join_by(X==V1))
+
+cts <- cts[!duplicated(cts$V2),]
+
+rownames(cts) <- cts$V2
+cts <- cts[,c(2:28)]
+
+coldata <- data.frame(
+    sample = colnames(cts),
+    condition = rep(c("si2", "si3", "neg"), times=9),
+    species = rep(c("Human", "Chimp", "Orangutan"), each=9)
+)
+
+rownames(coldata) <- coldata$sample
+
+all(rownames(coldata)==colnames(cts))
+```
+
+Check each species,
+
+```{r}
+# human
+cts_h <- cts[,c(1:9)]
+coldata_h <- coldata[c(1:9),]
+
+dds_h <- DESeqDataSetFromMatrix(countData = cts_h, colData = coldata_h, design = ~condition)
+dds_h <- DESeq(dds_h)
+res_h <- results(dds_h, contrast = c("condition", "neg", "si2"))
+summary(res_h, alpha=0.05)
+
+# filter zinc finger and zeb2, trim28, zeb2
+res_h_filter <- res_h %>%
+    data.frame() %>%
+    filter(rownames(.) %in% c("TRIM28", "ZEB2", hmKZNFs337$external_gene_name))
+
+EnhancedVolcano(res_h_filter,
+    lab = rownames(res_h_filter),
+    x = 'log2FoldChange',
+    y = 'pvalue',
+    title = 'Human control versus Human siRNA-KD',
+    pCutoff = 0.05,
+    FCcutoff = 1.5,
+    pointSize = 2.0,
+    labSize = 3.0)
+```
+
+
+
+```{r}
+# chimpanzee
+cts_c <- cts[,c(10:17)]
+coldata_c <- coldata[c(10:17),]
+
+dds_c <- DESeqDataSetFromMatrix(countData = cts_c, colData = coldata_c, design = ~condition)
+dds_c <- DESeq(dds_c)
+res_c <- results(dds_c, contrast = c("condition", "neg", "si2"))
+summary(res_c, alpha=0.05)
+
+res_c_filter <- res_c %>%
+    data.frame() %>%
+    filter(rownames(.) %in% c("TRIM28", "ZEB2", hmKZNFs337$external_gene_name))
+
+EnhancedVolcano(res_c_filter,
+    lab = rownames(res_c_filter),
+    x = 'log2FoldChange',
+    y = 'pvalue',
+    title = 'chimp control versus chimp siRNA-KD',
+    pCutoff = 0.05,
+    FCcutoff = 1.5,
+    pointSize = 2.0,
+    labSize = 3.0)
+
+```
+
+```{r}
+# chimpanzee
+cts_o <- cts[,c(18:27)]
+coldata_o <- coldata[c(18:27),]
+
+dds_o <- DESeqDataSetFromMatrix(countData = cts_o, colData = coldata_o, design = ~condition)
+dds_o <- DESeq(dds_o)
+res_o <- results(dds_o, contrast = c("condition", "neg", "si2"))
+
+summary(res_o, alpha=0.05)
+
+res_o_filter <- res_o %>%
+    data.frame() %>%
+    filter(rownames(.) %in% c("TRIM28", "ZEB2", hmKZNFs337$external_gene_name))
+
+EnhancedVolcano(res_o_filter,
+    lab = rownames(res_o_filter),
+    x = 'log2FoldChange',
+    y = 'pvalue',
+    title = 'orangutan control versus oran siRNA-KD',
+    pCutoff = 0.05,
+    FCcutoff = 1.5,
+    pointSize = 2.0,
+    labSize = 3.0)
+```
+
