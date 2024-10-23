@@ -1,12 +1,7 @@
 # Write a function that can parallel computes the rmcorr in the b cells data
 
-the input of the data should include three column, (1) Sample ID (2)
-expression level of KRAB-ZNFs (3) expression level of TEs. You can also
-include other information if you need it.
+the input of the data should include three column, (1) Sample ID (2) expression level of KRAB-ZNFs (3) expression level of TEs. You can also include other information if you need it.
 
 Below is the original TEKRABber::corrOrthologTE()
 
-Try to write corrOrthologTE_rmcorr() The output should be as the same as
-the orignal output, however, you can decide to modified it for better
-down-stream alaysis. Please refer to the rmcorr manual:
-<https://cran.r-project.org/web/packages/rmcorr/rmcorr.pdf>
+Try to write corrOrthologTE_rmcorr() The output should be as the same as the orignal output, however, you can decide to modified it for better down-stream alaysis. Please refer to the rmcorr manual: <https://cran.r-project.org/web/packages/rmcorr/rmcorr.pdf>
