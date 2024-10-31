@@ -1,3 +1,8 @@
+# Caluclate TE:KRAB-ZNF from SQuIRE output
+
+From previous script: `squire.qmd`, I obtain 27 mapping and quantifying files.
+Here I demonstrate how to calculate their correlations using TEKRABber:
+
 ```{r}
 library(dplyr)
 library(TEKRABber)
