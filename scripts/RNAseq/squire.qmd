@@ -1,8 +1,10 @@
 # Use SQuIRE to map TE in locus level
 
+This script tells how I quantify locus-specific TEs using SQuIRE and also how to manipulate the output at the first place.
+
 ## Download SQuIRE
 
-[SQuIRE](https://github.com/wyang17/SQuIRE) is published in Nucleic Acid Research in 2019 (doi.org/10.1093/nar/gky1301) and I try to follow the download steps from its github. However, it is hard to install because it is maintain in Python 2.7 and R 3.4 and not updating anymore.
+[SQuIRE](https://github.com/wyang17/SQuIRE) is published in Nucleic Acid Research in 2019 (doi.org/10.1093/nar/gky1301) and I try to follow the download steps from its github. However, it is hard to install because it is maintain in Python 2.7 and R 3.4 and not updating anymore. Also, I face obstacle running it on allegro.
 
 Therefore, here is the way I install SQuIRE on my laptop:
 
@@ -18,6 +20,8 @@ mamba create -n squire -c bioconda squire
 
 ## Run SQuIRE
 
+Below step1 and step2, I use orangutan as an example of how to quantify genes and TEs using SQuIRE.
+
 ### 1. Preparation stage
 
 #### Fetch
@@ -26,13 +30,13 @@ Download input files from RefGene and generates STAR index.
 
 ``` bash
 # for hg19
-squire Fetch -b hg19 -o human -f -c -r -g -x -p 3 -v
+squire Fetch -b hg19 -o hg19 -f -c -r -g -x -p 3 -v
 
 # for panTro4
-squire Fetch -b panTro4 -o chimp -f -c -r -g -x -p 3 -v
+squire Fetch -b panTro4 -o panTro4 -f -c -r -g -x -p 3 -v
 
 # for ponAbe2
-squire Fetch -b ponAbe2 -o chimp -f -c -r -g -x -p 3 -v
+squire Fetch -b ponAbe2 -o ponAbe2 -f -c -r -g -x -p 3 -v
 ```
 
 #### Clean
@@ -41,7 +45,7 @@ Filters genomic coordinates of repeats of interest from repeatmasker, collapses 
 
 ``` bash
 # example of ponAbe2
-squire Clean -r orangutan/ponAbe2_rmsk.txt -b ponAbe2 -o orangutan_clean -c 'DNA,LTR,LINE,SINE,Other' -v
+squire Clean -r ponAbe2/ponAbe2_rmsk.txt -b ponAbe2 -o ponAbe2_clean -c 'DNA,LTR,LINE,SINE,Other' -v
 ```
 
 ### 2. Quantification stage
@@ -51,7 +55,7 @@ squire Clean -r orangutan/ponAbe2_rmsk.txt -b ponAbe2 -o orangutan_clean -c 'DNA
 Aligns RNA-seq reads to STAR index allowing for multiple alignments. The output is a .bam file
 
 ``` bash
-squire Map -1 read1 -2 read2 -o oran_map -f orangutan -r 100 -b ponAbe2 -p 4 -v
+squire Map -1 read1 -2 read2 -o oran_map -f ponAbe2 -r 100 -b ponAbe2 -p 4 -v
 ```
 
 #### quantifying
@@ -59,7 +63,7 @@ squire Map -1 read1 -2 read2 -o oran_map -f orangutan -r 100 -b ponAbe2 -p 4 -v
 quantifies RNA-seq reads aligning to TEs and genes. Outputs counts for RefSeq genes and TEs at the locus and subfamily levels. The read length is 100bp and sequencer is TrueSeq.
 
 ``` bash
-squire Count -m oran_map -c orangutan_clean -o oran_count -f ponAbe2 -r 100 -b ponAbe2 -p 4 -s 1 -v
+squire Count -m oran_map -c ponAbe2_clean -o oran_count -f ponAbe2 -r 100 -b ponAbe2 -p 4 -s 1 -v
 ```
 
 ### 3. Manipulating data
