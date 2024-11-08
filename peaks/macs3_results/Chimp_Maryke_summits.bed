@@ -1,0 +1,12 @@
+track name="macs3_results/Chimp_Maryke (summits)" description="Summits for macs3_results/Chimp_Maryke (Made with MACS v2, 11/08/24)" visibility=1
+chr1	28961989	28961990	macs3_results/Chimp_Maryke_peak_1	3.53862
+chr11	10336365	10336366	macs3_results/Chimp_Maryke_peak_2	19.1266
+chr20_GL393023_random	107822	107823	macs3_results/Chimp_Maryke_peak_3	7.99027
+chr4_GL389834_random	1813	1814	macs3_results/Chimp_Maryke_peak_4	8.76957
+chr6_GL390389_random	6279	6280	macs3_results/Chimp_Maryke_peak_5	25.6257
+chr7	21347332	21347333	macs3_results/Chimp_Maryke_peak_6	146.937
+chr7	73941801	73941802	macs3_results/Chimp_Maryke_peak_7	17.2527
+chr8	83777723	83777724	macs3_results/Chimp_Maryke_peak_8	6.95074
+chrUn_GL393522	315980	315981	macs3_results/Chimp_Maryke_peak_9a	11.0385
+chrUn_GL393522	316321	316322	macs3_results/Chimp_Maryke_peak_9b	5.55161
+chrUn_GL393522	316790	316791	macs3_results/Chimp_Maryke_peak_10	5.93256

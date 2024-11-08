@@ -1,0 +1,12 @@
+track type=narrowPeak name="macs3_results/Chimp_Maryke" description="macs3_results/Chimp_Maryke" nextItemButton=on
+chr1	28961746	28962315	macs3_results/Chimp_Maryke_peak_1	35	.	2.50167	9.02942	3.53862	243
+chr11	10335806	10336860	macs3_results/Chimp_Maryke_peak_2	191	.	7.94098	25.377	19.1266	559
+chr20_GL393023_random	107553	108181	macs3_results/Chimp_Maryke_peak_3	79	.	7.51221	13.7711	7.99027	269
+chr4_GL389834_random	1546	2303	macs3_results/Chimp_Maryke_peak_4	87	.	5.89707	14.582	8.76957	267
+chr6_GL390389_random	5769	6854	macs3_results/Chimp_Maryke_peak_5	256	.	13.0026	32.0744	25.6257	510
+chr7	21346850	21347958	macs3_results/Chimp_Maryke_peak_6	1469	.	33.7989	154.381	146.937	482
+chr7	73941401	73942502	macs3_results/Chimp_Maryke_peak_7	172	.	5.63429	23.4144	17.2527	400
+chr8	83777341	83777942	macs3_results/Chimp_Maryke_peak_8	69	.	6.13623	12.6412	6.95074	382
+chrUn_GL393522	315744	316447	macs3_results/Chimp_Maryke_peak_9a	110	.	5.74276	17.0133	11.0385	236
+chrUn_GL393522	315744	316447	macs3_results/Chimp_Maryke_peak_9b	55	.	5.02343	11.1618	5.55161	577
+chrUn_GL393522	316547	317118	macs3_results/Chimp_Maryke_peak_10	59	.	4.61965	11.5571	5.93256	243
