@@ -1,0 +1,23 @@
+track type=narrowPeak name="macs3_results/Oran_JingJing" description="macs3_results/Oran_JingJing" nextItemButton=on
+chr11	35149113	35149395	macs3_results/Oran_JingJing_peak_1	106	.	7.08229	16.6266	10.6249	110
+chr12	51097689	51098114	macs3_results/Oran_JingJing_peak_2	60	.	5.72031	11.8519	6.07571	256
+chr12	122490055	122490300	macs3_results/Oran_JingJing_peak_3	121	.	10.2088	18.2327	12.1548	208
+chr17	14099684	14100369	macs3_results/Oran_JingJing_peak_4	47	.	6.80589	10.3941	4.71949	445
+chr18	60912297	60912709	macs3_results/Oran_JingJing_peak_5	126	.	9.10401	18.8228	12.6929	217
+chr19	21130058	21130339	macs3_results/Oran_JingJing_peak_6	125	.	10.9354	18.715	12.5901	144
+chr19	59623803	59624034	macs3_results/Oran_JingJing_peak_7	65	.	7.96184	12.3553	6.55541	113
+chr2a_random	2819007	2819505	macs3_results/Oran_JingJing_peak_8	204	.	12.5888	26.9307	20.4864	224
+chr4	135539649	135539902	macs3_results/Oran_JingJing_peak_9	104	.	8.31236	16.4833	10.4874	161
+chr5	91723351	91723769	macs3_results/Oran_JingJing_peak_10	128	.	9.79126	18.9493	12.8147	221
+chr7	61739548	61739991	macs3_results/Oran_JingJing_peak_11	333	.	9.73046	40.1462	33.3476	158
+chr7	117024241	117024472	macs3_results/Oran_JingJing_peak_12	48	.	6.52751	10.5812	4.89649	100
+chr9	61670780	61671015	macs3_results/Oran_JingJing_peak_13	57	.	6.18993	11.5391	5.79355	179
+chrUn	47544960	47545191	macs3_results/Oran_JingJing_peak_14	65	.	7.96184	12.3553	6.55541	100
+chrUn	55371499	55371919	macs3_results/Oran_JingJing_peak_15	231	.	10.351	29.6334	23.1299	217
+chrUn	55373952	55374183	macs3_results/Oran_JingJing_peak_16	39	.	6.56125	9.57317	3.94092	96
+chrUn	55374447	55375000	macs3_results/Oran_JingJing_peak_17	232	.	8.05279	29.8161	23.2975	279
+chrUn	57149453	57149870	macs3_results/Oran_JingJing_peak_18	256	.	16.6475	32.1945	25.6299	233
+chrUn	59104518	59105555	macs3_results/Oran_JingJing_peak_19a	509	.	23.8625	60.4547	50.9173	355
+chrUn	59104518	59105555	macs3_results/Oran_JingJing_peak_19b	173	.	9.42381	23.725	17.3777	754
+chrUn	60328697	60328934	macs3_results/Oran_JingJing_peak_20	138	.	9.49984	20.0205	13.8447	205
+chrUn	70328054	70328301	macs3_results/Oran_JingJing_peak_21	104	.	2.836	16.4133	10.4381	93

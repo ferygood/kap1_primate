@@ -9,118 +9,113 @@ library(TEKRABber)
 library(twice)
 library(ggplot2)
 library(tidyr)
-```
+library(rmcorr)
 
-```{r}
-jaqo_TE <- read.table("../oran_count/jaqo/Orang_Jaqo_Zeb2_neg_R1_TEcounts.txt",
-                      header=T)
-jing_TE <- read.table("../oran_count/jingjing/Orang_JingJing_Zeb2_neg_R1_TEcounts.txt",
-                      header=T)
-guchi_TE <- read.table("../oran_count/guchi/Orang_Guchi_Zeb2_neg_R1_TEcounts.txt",
-                       header=T)
-```
-
-try to merge the data
-```{r}
-# TE
-df_oranTE <- jaqo_TE %>%
-    distinct(TE_ID, .keep_all = TRUE) %>%
-    select(c(9,10,11,4,5,18))
-
-jing_TE_distinct <- jing_TE %>%
-    distinct(TE_ID, .keep_all = TRUE)
-
-guchi_TE_distinct <- guchi_TE %>%
-    distinct(TE_ID, .keep_all = TRUE)
-
-df_oranTE_merge <- df_oranTE %>%
-    inner_join(jing_TE_distinct[,c(4,5,18)], join_by(TE_ID==TE_ID))
-
-df_oranTE_merge <- df_oranTE_merge %>%
-    inner_join(guchi_TE_distinct[,c(4,5,18)], join_by(TE_ID==TE_ID))
-
-df_oranTE_merge <- df_oranTE_merge %>%
-    filter(score.x > 50 & score.y > 50 & score > 50)
-
-# prepare input for correlation: df_oranTE_corrInput
-df_oranTE_corrInput <- df_oranTE_merge[,c(5,7,9)]
-rownames(df_oranTE_corrInput) <- df_oranTE_merge$TE_ID 
-
-```
-
-For merging gene data
-```{r}
 data("hmKZNFs337")
-jaqo_gene <- read.table("../oran_count/jaqo/Orang_Jaqo_Zeb2_neg_R1_refGenecounts.txt", sep="\t")
-
-jaqo_znf <- jaqo_gene %>% filter(V4 %in% hmKZNFs337$external_gene_name) #51
-
-jing_gene <- read.table("../oran_count/jingjing/Orang_JingJing_Zeb2_neg_R1_refGenecounts.txt", sep="\t")
-
-jing_znf <- jing_gene %>% filter(V4 %in% hmKZNFs337$external_gene_name) #51
-
-guchi_gene <- read.table("../oran_count/guchi/Orang_Guchi_Zeb2_neg_R1_refGenecounts.txt", sep="\t")
-
-guchi_znf <- guchi_gene %>% filter(V4 %in% hmKZNFs337$external_gene_name)
-
-#merge data for correlation input
-df_oranZNF <- jaqo_znf %>% 
-    select(c(4,5)) %>%
-    inner_join(jing_znf[,c(4,5)], join_by(V4==V4)) %>%
-    inner_join(guchi_znf[,c(4,5)], join_by(V4==V4))
-
-df_oranZNF_corrInput <- df_oranZNF %>% select(c(2,3,4))
-rownames(df_oranZNF_corrInput) <- df_oranZNF$V4
 ```
 
-Run correlation analysis, 8765 TEs vs. 29 KRAB-ZNFs
 ```{r}
-timestamp()
+# human 9 sample
+path="~/github/kap1_primate/bcells_exp/squire_count/human_count/"
+# GM18558
+h1 <- read.table(paste0(path,"GM18558_count/GM18558_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h2 <- read.table(paste0(path,"GM18558_2/GM18558_Zeb2_2_R1_TEcounts.txt"), header = T)
+h3 <- read.table(paste0(path,"GM18558_3/GM18558_Zeb2_3_R1_TEcounts.txt"), header = T)
 
-df_oranZNF_corrInput_nozero <- df_oranZNF_corrInput %>%
-    filter_all(all_vars(. != 0))
+# GM18960
+h4 <- read.table(paste0(path,"GM18960_count/GM18960_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h5 <- read.table(paste0(path,"GM18960_2/GM18960_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+h6 <- read.table(paste0(path,"GM18960_3/GM18960_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
 
-df_oranTE_corrInput_nozero <- df_oranTE_corrInput %>%
-    filter_all(all_vars(. != 0))
+# GM19240
+h7 <- read.table(paste0(path,"GM19240_count/GM19240_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h8 <- read.table(paste0(path,"GM19240_2/GM19240_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+h9 <- read.table(paste0(path,"GM19240_3/GM19240_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
 
-oran_corr <- corrOrthologTE(
-    geneInput = df_oranZNF_corrInput_nozero,
-    teInput = df_oranTE_corrInput_nozero,
-    numCore = 4    
+filter_select <- function(df, sample){
+    
+    df_process <- df %>%
+        filter(score >= 90) %>%
+        select(c(4,5))
+    colnames(df_process) <- c("ID", sample)
+    df_process <- df_process[!duplicated(df_process$ID), ]
+}
+
+h1_f <- filter_select(h1, "h1")
+h2_f <- filter_select(h2, "h2")
+h3_f <- filter_select(h3, "h3")
+h4_f <- filter_select(h4, "h4")
+h5_f <- filter_select(h5, "h5")
+h6_f <- filter_select(h6, "h6")
+h7_f <- filter_select(h7, "h7")
+h8_f <- filter_select(h8, "h8")
+h9_f <- filter_select(h9, "h9")
+
+# merge
+df_h_TE <- Reduce(function(x, y) merge(x, y, by = "ID", all = FALSE), 
+                    list(h1_f, h2_f, h3_f, h4_f, h5_f, h6_f, h7_f, h8_f, h9_f)) #3006
+rownames(df_h_TE) <- paste0("Hm", 1:nrow(df_h_TE))
+```
+
+For human KRAB-ZNFs
+
+```{r}
+#GM18558
+k1 <- read.table(paste0(path,"GM18558_count/GM18558_Zeb2_neg_R1_refGenecounts.txt"), sep="\t")
+k2 <- read.table(paste0(path,"GM18558_2/GM18558_Zeb2_2_R1_refGenecounts.txt"), sep="\t")
+k3 <- read.table(paste0(path,"GM18558_3/GM18558_Zeb2_3_R1_refGenecounts.txt"), sep="\t")
+
+#GM18960
+k4 <- read.table(paste0(path,"GM18960_count/GM18960_Zeb2_neg_R1_refGenecounts.txt"), sep="\t")
+k5 <- read.table(paste0(path,"GM18960_2/GM18960_Zeb2_2_R1.fastq_refGenecounts.txt"), sep="\t")
+k6 <- read.table(paste0(path,"GM18960_3/GM18960_Zeb2_3_R1.fastq_refGenecounts.txt"), sep="\t")
+
+#GM19240
+k7 <- read.table(paste0(path,"GM19240_count/GM19240_Zeb2_neg_R1_refGenecounts.txt"), sep="\t")
+k8 <- read.table(paste0(path,"GM19240_2/GM19240_Zeb2_2_R1.fastq_refGenecounts.txt"), sep="\t")
+k9 <- read.table(paste0(path,"GM19240_3/GM19240_Zeb2_3_R1.fastq_refGenecounts.txt"), sep="\t")
+
+select_kznf <- function(df, col_name){
+    
+    df_select <- df %>%
+        select(c(4,5)) %>%
+        filter(V4 %in% c(hmKZNFs337$external_gene_name, "TRIM28"))
+    df_select <- df_select[!duplicated(df_select$V4), ]
+    
+    colnames(df_select) <- c("geneName", col_name)
+    df_select
+}
+
+k1_f <- select_kznf(k1, "h1")
+k2_f <- select_kznf(k2, "h2")
+k3_f <- select_kznf(k3, "h3")
+k4_f <- select_kznf(k4, "h4")
+k5_f <- select_kznf(k5, "h5")
+k6_f <- select_kznf(k6, "h6")
+k7_f <- select_kznf(k7, "h7")
+k8_f <- select_kznf(k8, "h8")
+k9_f <- select_kznf(k9, "h9")
+
+df_k_merge <- Reduce(function(x, y) merge(x, y, by = "geneName", all = FALSE), 
+                    list(k1_f, k2_f, k3_f, k4_f, k5_f, k6_f, k7_f, k8_f, k9_f))
+
+df_k_merge_nozero <- df_k_merge %>% filter(rowSums(.==0) < 2) #233
+```
+
+Example usage of one sample
+```{r}
+# can based on this method to write new function.
+df_rmcorr_test <- data.frame(
+    subject = c(1,1,1,2,2,2,3,3,3),
+    TE = as.numeric(df_h_TE[12,c(2:10)]),
+    ZNF = as.numeric(df_k_merge_nozero[115, c(2:10)])
 )
-timestamp()
-```
 
-```{r}
-library(ggplot2)
-```
-
-```{r}
-#check the number
-#1. padj<0.05
-oran_corr %>% filter(padj<0.05) %>% nrow() #0
-
-#2. pvalue<0.05
-oran_corr %>% filter(pvalue<0.05) %>% nrow() #14420
-oran_corr_sig <- oran_corr %>% filter(pvalue<0.01) #2829
-
-df_temp <- data.frame(
-    gene = t(df_oranZNF_corrInput["ZNF7",]),
-    te = t(df_oranTE_corrInput["chr7|2155953|2156102|FLAM_C:Alu:SINE|238|-",]))
-
-colnames(df_temp) <- c("gene", "te")
-
-ggplot(df_temp, aes(x=te, y=gene)) +
-    geom_point() +
-    ylab("ZNF7") +
-    xlab("chr7|2155953|2156102|FLAM_C:Alu:SINE|238|-") +
-    theme_bw()
-```
-```{r}
-oran_corr_sig_pos <- oran_corr_sig %>% filter(coef>0)
-oran_corr_sig_neg <- oran_corr_sig %>% filter(coef<0)
+rm_obj <- rmcorr(subject, TE, ZNF, df_rmcorr_test)
+plot(rm_obj)
 
 ```
+
 
 
 
@@ -129,7 +124,9 @@ chipexo <- read.csv("../tables/chipexo_PBD778.csv")
 
 oran_corr_sig %>% filter(geneName %in% chipexo$geneName) %>% distinct(geneName)
 ```
+
 ```{r}
+# how to separate the long values to different columns
 oran_corr_sig_preprocess <- oran_corr_sig %>%
   mutate(TE_subfamily = sapply(
       stringr::str_split(teName, "\\|"), function(x) stringr::str_extract(x[4], "^[^:]+"))) %>%

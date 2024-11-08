@@ -1,1 +1,11 @@
 # Analyze ChIP-seq data
+
+1. Read and merge the files (what is the select criteria?)
+2. Prepare TE annotation files
+3. Do intersect
+
+```{r}
+h_peak_1 <- read.table("../../peaks/macs3_results/GM18558_peaks.narrowPeak",
+                       sep="\t", header=FALSE, skip=1) #493
+```
+
