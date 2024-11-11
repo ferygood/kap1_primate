@@ -4,8 +4,57 @@
 2. Prepare TE annotation files
 3. Do intersect
 
+Load libraries
 ```{r}
-h_peak_1 <- read.table("../../peaks/macs3_results/GM18558_peaks.narrowPeak",
-                       sep="\t", header=FALSE, skip=1) #493
+library(twice)
+library(dplyr)
+data("hg19rmsk_info")
+
+TE_info <- hg19rmsk_info %>%
+    filter(class_id %in% c("SINE", "LINE", "DNA", "SVA", "LTR"))
 ```
+
+
+```{r}
+# load overlap TE peaks
+hm_TE <- read.table("../../peaks/macs3_results/hm_TE.peak", sep="\t")
+chimp_TE <- read.table("../../peaks/macs3_results/chimp_TE.peak", sep="\t")
+oran_TE <- read.table("../../peaks/macs3_results/oran_TE.peak", sep="\t")
+```
+
+Filter only SINE, LINE, DNA, SVA, LTR samples
+
+```{r}
+hm_TE_filter <- hm_TE %>% 
+    filter(V4 %in% TE_info$gene_id) # 3913
+
+chimp_TE_filter <- chimp_TE %>%
+    filter(V4 %in% TE_info$gene_id) # 10300
+
+oran_TE_filter <- oran_TE %>%
+    filter(V4 %in% TE_info$gene_id) # 30715
+
+```
+
+See how many of them from the subfamily group
+First, use human data
+
+```{r}
+hm_TE_select <- hm_TE_filter %>%
+    count(V4) %>%
+    arrange(desc(n)) #246
+
+chimp_TE_select <- chimp_TE_filter %>%
+    count(V4) %>%
+    arrange(desc(n)) #429
+
+oran_TE_select <- oran_TE_filter %>%
+    count(V4) %>%
+    arrange(desc(n)) #493
+
+
+# overlap using upset plot in TE subfamily
+hm_TE_select %>% filter(!V4 %in% chimp_TE_filter$V4)
+```
+
 
