@@ -57,4 +57,47 @@ oran_TE_select <- oran_TE_filter %>%
 hm_TE_select %>% filter(!V4 %in% chimp_TE_filter$V4)
 ```
 
+Generate plots for Figure2B: (1) peak counts vs. h/c/o (2) TE subfamiliy counts vs. h/c/o
+
+```{r}
+library(ggplot2)
+library(ggpubr)
+
+# peak counts
+df_peak <- data.frame(
+    species = factor(c("H", "C", "O"), levels = c("H", "C", "O")),
+    peak_count = c(2470, 7301, 12376)
+)
+
+g1 <- ggplot(df_peak, aes(x=species, y=peak_count, fill=species)) +
+    geom_bar(stat="identity") +
+    scale_fill_manual(values=c("H"="#e7b7b1", "C"="#c8eaee", "O"="#b2beb5")) +
+    ylab("Peak Counts") +
+    xlab("") +
+    theme_bw() +
+    theme(text = element_text(size=20)) 
+
+```
+
+
+```{r}
+df_TEsubfamily <- data.frame(
+    species = factor(c("H", "C", "O"), levels = c("H", "C", "O")),
+    te = c(246, 429, 493)
+)
+
+g2 <- ggplot(df_TEsubfamily, aes(x=species, y=te, fill=species)) +
+    geom_bar(stat="identity") +
+    scale_fill_manual(values=c("H"="#e7b7b1", "C"="#c8eaee", "O"="#b2beb5")) +
+    ylab("TE subfamily counts") +
+    xlab("") +
+    theme_bw() +
+    theme(text = element_text(size=20)) 
+```
+
+
+```{r}
+g_merge <- ggarrange(g1, g2, ncol=2, common.legend = TRUE, legend = "bottom")
+ggsave("../../figures/fig2b.jpg", dpi=300, width=8, height=6)
+```
 
