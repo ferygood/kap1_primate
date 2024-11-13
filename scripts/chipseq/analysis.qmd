@@ -1,10 +1,11 @@
 # Analyze ChIP-seq data
 
-1. Read and merge the files (what is the select criteria?)
-2. Prepare TE annotation files
-3. Do intersect
+1.  Read and merge the files (what is the select criteria?)
+2.  Prepare TE annotation files
+3.  Do intersect
 
 Load libraries
+
 ```{r}
 library(twice)
 library(dplyr)
@@ -12,8 +13,9 @@ data("hg19rmsk_info")
 
 TE_info <- hg19rmsk_info %>%
     filter(class_id %in% c("SINE", "LINE", "DNA", "SVA", "LTR"))
-```
 
+young_TE <- read.csv("../../tables/Dfam_TE_simiiformes.csv")
+```
 
 ```{r}
 # load overlap TE peaks
@@ -36,8 +38,7 @@ oran_TE_filter <- oran_TE %>%
 
 ```
 
-See how many of them from the subfamily group
-First, use human data
+See how many of them from the subfamily group Use Upsetplot to have an overview,
 
 ```{r}
 hm_TE_select <- hm_TE_filter %>%
@@ -51,13 +52,56 @@ chimp_TE_select <- chimp_TE_filter %>%
 oran_TE_select <- oran_TE_filter %>%
     count(V4) %>%
     arrange(desc(n)) #493
-
-
-# overlap using upset plot in TE subfamily
-hm_TE_select %>% filter(!V4 %in% chimp_TE_filter$V4)
 ```
 
-Generate plots for Figure2B: (1) peak counts vs. h/c/o (2) TE subfamiliy counts vs. h/c/o
+Visualize:
+
+```{r}
+library(ggplot2)
+library(ComplexUpset)
+
+all_TE <- unique(c(hm_TE_select$V4, chimp_TE_select$V4, oran_TE_select$V4)) #589
+data <- data.frame(
+    Human = all_TE %in% hm_TE_select$V4,
+    Chimp = all_TE %in% chimp_TE_select$V4,
+    Orangutan = all_TE %in% oran_TE_select$V4
+)
+
+rownames(data) <- all_TE
+
+g_upset <- upset(data, c("Human", "Chimp", "Orangutan"))
+ggsave(g_upset, filename="../../figures/upset_TE.jpg", dpi=300, width=6, height=4)
+```
+
+Add evolutionary age
+
+```{r}
+data_age <- data %>%
+    mutate(age = ifelse(rownames(.) %in% young_TE$NM, "young", "old"))
+write.csv(data_age, file="../../tables/TE_589_intersect.csv")
+```
+
+```{r}
+intersect_TE <- Reduce(intersect, 
+                       list(hm_TE_select$V4, chimp_TE_select$V4, oran_TE_select$V4))
+
+TE_info_intersect <- TE_info %>% 
+    filter(gene_id %in% intersect_TE) %>%
+    mutate(TE_age = ifelse(gene_id %in% young_TE$NM, "young", "old"))
+
+
+hm_chimp_intersect <- intersect(hm_TE_select$V4, chimp_TE_select$V4) 
+hm_chimp_intersect_no_oran <- setdiff(hm_chimp_intersect, oran_TE_select$V4)
+TE_info_onlyHmChimp_noOran <- TE_info %>%
+    filter(gene_id %in% hm_chimp_intersect_no_oran) %>%
+    mutate(TE_age = ifelse(gene_id %in% young_TE$NM, "young", "old"))
+
+# human specific
+hm_specific <- setdiff(hm_TE_select$V4, chimp_TE_select$V4)
+hm_specific <- setdiff(hm_specific, oran_TE_select$V4) #13
+```
+
+Generate plots for **Figure2B**: (1) peak counts vs. h/c/o (2) TE subfamiliy counts vs. h/c/o
 
 ```{r}
 library(ggplot2)
@@ -79,7 +123,6 @@ g1 <- ggplot(df_peak, aes(x=species, y=peak_count, fill=species)) +
 
 ```
 
-
 ```{r}
 df_TEsubfamily <- data.frame(
     species = factor(c("H", "C", "O"), levels = c("H", "C", "O")),
@@ -95,9 +138,7 @@ g2 <- ggplot(df_TEsubfamily, aes(x=species, y=te, fill=species)) +
     theme(text = element_text(size=20)) 
 ```
 
-
 ```{r}
 g_merge <- ggarrange(g1, g2, ncol=2, common.legend = TRUE, legend = "bottom")
 ggsave("../../figures/fig2b.jpg", dpi=300, width=8, height=6)
 ```
-
