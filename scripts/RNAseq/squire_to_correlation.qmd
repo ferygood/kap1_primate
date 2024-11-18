@@ -102,17 +102,28 @@ df_k_merge <- Reduce(function(x, y) merge(x, y, by = "geneName", all = FALSE),
 df_k_merge_nozero <- df_k_merge %>% filter(rowSums(.==0) < 2) #233
 ```
 
-Example usage of one sample
+Running the first 10 lines in human samples, using `corrOrthologTE_rmcorr()`:
 ```{r}
-# can based on this method to write new function.
-df_rmcorr_test <- data.frame(
-    subject = c(1,1,1,2,2,2,3,3,3),
-    TE = as.numeric(df_h_TE[12,c(2:10)]),
-    ZNF = as.numeric(df_k_merge_nozero[115, c(2:10)])
+library(doParallel)
+
+# gene Input
+k_input <- df_k_merge_nozero[,c(2:10)]
+rownames(k_input) <- df_k_merge_nozero$geneName
+
+# te Input
+te_input <- df_h_TE[,c(2:10)]
+rownames(te_input) <- df_h_TE$ID
+
+# sample meta
+sample_name <- paste0("H", rep(1:3, each=3))
+
+
+df_test1 <- corrOrthologTE_rmcorr(
+    geneInput = k_input[1:10, ],
+    teInput = te_input[1:10, ],
+    sample_meta = sample_name
 )
 
-rm_obj <- rmcorr(subject, TE, ZNF, df_rmcorr_test)
-plot(rm_obj)
 
 ```
 
