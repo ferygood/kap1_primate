@@ -1,0 +1,271 @@
+# Prepare peak data for annotation
+
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+## Step1. Load the intersected BED files
+
+```{r}
+# load overlap TE peaks
+hm_TE <- read.table("../../peaks/macs3_results/hm_TE.peak", sep="\t")
+chimp_TE <- read.table("../../peaks/macs3_results/chimp_TE.peak", sep="\t")
+oran_TE <- read.table("../../peaks/macs3_results/oran_TE.peak", sep="\t")
+
+# load macs3 peaks which overlap with TEs
+hm <- read.table("../../peaks/macs3_results/human_TE_only.bed", sep="\t") #2077
+chimp <- read.table(
+    "../../peaks/macs3_results/chimp_TE_only.bed", sep="\t") #5754
+oran <- read.table("../../peaks/macs3_results/oran_TE_only.bed", sep="\t") #10098
+```
+
+Adjust column name to human-readable,
+
+```{r}
+col_name <- c("chr", "start", "end", "peak_id", "score", "strand", "signal_value", "p_value", "q_value", "length")
+
+colnames(hm) <- col_name
+colnames(chimp) <- col_name
+colnames(oran) <- col_name
+```
+
+## Step2. Calculate Peak Characteristics
+
+```{r}
+# calculate peak center
+hm$peak_center <- hm$start + (hm$length / 2)
+chimp$peak_center <- chimp$start + (chimp$length / 2)
+oran$peak_center <- oran$start + (oran$length / 2)
+```
+
+## Step3. Annotate peaks based on score or signal
+
+```{r}
+# categorize peak based on peak score
+hm$peak_strength <- ifelse(hm$score > 100, "Strong", "Weak")
+chimp$peak_strength <- ifelse(chimp$score > 100, "Strong", "Weak")
+oran$peak_strength <- ifelse(oran$score > 100, "Strong", "Weak")
+
+# categorize peaks based on signal value
+hm$signal_category <- ifelse(hm$signal_value > 5, "High", "Low")
+chimp$signal_category <- ifelse(chimp$signal_value > 5, "High", "Low")
+oran$signal_category <- ifelse(oran$signal_value > 5, "High", "Low")
+
+col_name_update <- c("chr", "start", "end", "length", "peak_id", "score",
+                     "strand", "signal_value", "p_value", "q_value", 
+                     "length", "peak_center", "peak_strength", 
+                     "signal_category")
+
+write.table(hm, file="../../peaks/human_annotated_peaks.txt", sep="\t", 
+            row.names=F, quote = FALSE, col.names = T)
+write.table(chimp, file="../../peaks/chimp_annotated_peaks.txt", sep="\t", 
+            row.names=F, quote = FALSE, col.names = T)
+write.table(oran, file="../../peaks/oran_annotated_peaks.txt", sep="\t", 
+            row.names=F, quote = FALSE, col.names = T)
+```
+
+Now, we can carry the annotated data from step3 to do down-stream analysis
+
+## Step4. Peak annotation (ChIPseeker)
+
+#### Human
+
+```{r}
+library(GenomicFeatures)
+library(ChIPseeker)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(org.Pt.eg.db)
+
+txdb_hg19 <- makeTxDbFromUCSC(genome="hg19", tablename="ensGene")
+txdb_panTro4 <- makeTxDbFromUCSC(genome="panTro4", tablename="ensGene")
+
+```
+
+```{r}
+#human
+# Convert data frame `hm` to a GRanges object
+peak_gr_hm <- GRanges(seqnames = hm$chr,
+                   ranges = IRanges(start = hm$start, end = hm$end),
+                   strand = "+",
+                   score = hm$score,
+                   peak_id = hm$peak_id)
+
+# Annotate peaks using ChIPseeker
+peak_annotation_hm <- annotatePeak(peak_gr_hm, TxDb = txdb_hg19, tssRegion = c(-3000, 3000), verbose = TRUE)
+
+# View the annotation
+head(as.data.frame(peak_annotation_hm))
+```
+
+```{r}
+# visualize human result
+plotAnnoBar(peak_annotation_hm)
+plotAnnoPie(peak_annotation_hm)
+plotDistToTSS(peak_annotation_hm)
+```
+
+```{r}
+hm_gene_id <- as.data.frame(peak_annotation_hm)$geneId
+hm_gene_id <- unique(hm_gene_id) #580
+
+# GO enrichment analysis
+go_hm <- enrichGO(
+    gene = hm_gene_id,
+    OrgDb = org.Hs.eg.db, # Change this if not human
+    keyType = "ENSEMBL",   # Ensure gene IDs are in ENTREZ format
+    ont = "BP",        # Ontology: BP (Biological Process), CC, or MF
+    pAdjustMethod = "BH",        # Adjust p-value using Benjamini-Hochberg
+    pvalueCutoff  = 0.05,        # Significant p-value threshold
+    qvalueCutoff  = 0.2)         # Significant q-value threshold
+
+# View results
+head(go_hm)
+```
+
+```{r}
+# Barplot of top GO terms
+barplot(go_hm, showCategory = 10, title = "Top 10 GO Biological Processes")
+
+# Dotplot of enriched GO terms
+dotplot(go_hm, showCategory = 10, title = "GO Enrichment Dotplot")
+
+# Simplify redundant GO terms
+go_enrichment_simple <- simplify(go_hm, cutoff = 0.7, 
+                                 by = "p.adjust", select_fun = min)
+dotplot(go_hm, showCategory = 10, title = "Simplified GO Enrichment")
+
+```
+
+merge human result
+
+```{r}
+png("../../figures/hm_AnnoPie.png", width=6, height=6, units="in", res=300)
+plotAnnoPie(peak_annotation_hm)
+dev.off()
+hm_bp_dotplot <- dotplot(go_hm, title = "GO Enrichment (BP)")
+ggsave(hm_bp_dotplot, filename="../../figures/hm_bp_dotplot.png", width=6, height=6, dpi=300)
+hm_mf_dotplot <- dotplot(go_hm, title = "GO Enrichment (MF)")
+ggsave(hm_mf_dotplot, filename="../../figures/hm_mf_dotplot.png", 
+       width=6, height = 6, dpi=300)
+```
+
+#### chimpanzee
+
+```{r}
+#chimp
+# Convert data frame `chimp` to a GRanges object
+peak_gr_chimp <- GRanges(seqnames = chimp$chr,
+                   ranges = IRanges(start = chimp$start, end = chimp$end),
+                   strand = "+",
+                   score = chimp$score,
+                   peak_id = chimp$peak_id)
+
+# Annotate peaks using ChIPseeker
+peak_annotation_chimp <- annotatePeak(peak_gr_chimp, TxDb = txdb_panTro4, tssRegion = c(-3000, 3000), verbose = TRUE)
+
+# View the annotation
+head(as.data.frame(peak_annotation_chimp))
+```
+
+```{r}
+chimp_gene_id <- as.data.frame(peak_annotation_chimp)$geneId
+chimp_gene_id <- unique(chimp_gene_id) #2428
+chimp_gene_id <- substr(chimp_gene_id, 1, 18)
+
+# GO enrichment analysis
+go_chimp_cc <- enrichGO(
+    gene = chimp_gene_id,
+    OrgDb = org.Pt.eg.db, # Change this if not human
+    keyType = "ENSEMBL",   # Ensure gene IDs are in ENTREZ format
+    ont = "CC",        # Ontology: BP (Biological Process), CC, or MF
+    pAdjustMethod = "BH",        # Adjust p-value using Benjamini-Hochberg
+    pvalueCutoff  = 0.05,        # Significant p-value threshold
+    qvalueCutoff  = 0.2)         # Significant q-value threshold
+
+
+```
+
+```{r}
+png("../../figures/chimp_AnnoPie.png", width=6, height=6, units="in", res=300)
+plotAnnoPie(peak_annotation_chimp)
+dev.off()
+hm_cc_dotplot <- dotplot(go_chimp_cc, title = "GO Enrichment (CC)")
+ggsave(hm_cc_dotplot, filename="../../figures/chimp_cc_dotplot.png", width=6, height=6, dpi=300)
+```
+
+#### Orangutan
+
+```{r}
+library(org.Pabelii.eg.db)
+txdb_ponAbe2 <- makeTxDbFromUCSC(genome="ponAbe2", tablename="ensGene")
+
+# oran
+# Convert data frame `chimp` to a GRanges object
+peak_gr_oran <- GRanges(seqnames = oran$chr,
+                   ranges = IRanges(start = oran$start, end = oran$end),
+                   strand = "+",
+                   score = oran$score,
+                   peak_id = oran$peak_id)
+
+# Annotate peaks using ChIPseeker
+peak_annotation_oran <- annotatePeak(peak_gr_oran, TxDb = txdb_ponAbe2, tssRegion = c(-3000, 3000), verbose = TRUE)
+```
+
+```{r}
+oran_gene_id <- as.data.frame(peak_annotation_oran)$geneId
+oran_gene_id <- unique(oran_gene_id) #2859
+oran_gene_id <- substr(oran_gene_id, 1, 18)
+
+# GO enrichment analysis
+go_oran_bp <- enrichGO(
+    gene = oran_gene_id,
+    OrgDb = org.Pabelii.eg.db, # Change this if not human
+    keyType = "ENSEMBL",   # Ensure gene IDs are in ENTREZ format
+    ont = "BP",        # Ontology: BP (Biological Process), CC, or MF
+    pAdjustMethod = "BH",        # Adjust p-value using Benjamini-Hochberg
+    pvalueCutoff  = 0.05,        # Significant p-value threshold
+    qvalueCutoff  = 0.2)         # Significant q-value threshold
+
+# MF has not result
+
+go_oran_cc <- enrichGO(
+    gene = oran_gene_id,
+    OrgDb = org.Pabelii.eg.db, # Change this if not human
+    keyType = "ENSEMBL",   # Ensure gene IDs are in ENTREZ format
+    ont = "CC",        # Ontology: BP (Biological Process), CC, or MF
+    pAdjustMethod = "BH",        # Adjust p-value using Benjamini-Hochberg
+    pvalueCutoff  = 0.05,        # Significant p-value threshold
+    qvalueCutoff  = 0.2)         # Significant q-value threshold
+
+```
+
+```{r}
+png("../../figures/oran_AnnoPie.png", width=6, height=6, units="in", res=300)
+plotAnnoPie(peak_annotation_oran)
+dev.off()
+oran_cc_dotplot <- dotplot(go_oran_cc, title = "GO Enrichment (CC)")
+oran_bp_dotplot <- dotplot(go_oran_bp, title = "GO Enrichment (BP)")
+
+ggsave(oran_cc_dotplot, filename="../../figures/oran_cc_dotplot.png", width=6, height=6, dpi=300)
+
+ggsave(oran_bp_dotplot, filename = "../../figures/oran_bp_dotplot.png")
+```
+
+### save GO term as dataframe
+
+```{r}
+write.table(as.data.frame(go_hm), file = "../../tables/hm_peak_mf.txt", sep='\t',quote = FALSE, row.names = FALSE)
+
+write.table(as.data.frame(go_hm), file = "../../tables/hm_peak_bp.txt", sep='\t',quote = FALSE, row.names = FALSE)
+
+write.table(as.data.frame(go_chimp_cc), file = '../../tables/chimp_peak_cc.txt',
+            sep='\t', quote=FALSE, row.names=FALSE)
+
+write.table(as.data.frame(go_oran_bp), file = '../../tables/oran_peak_bp.txt',
+            sep='\t', quote=FALSE, row.names=FALSE)
+
+write.table(as.data.frame(go_oran_cc), file = '../../tables/oran_peak_cc.txt',
+            sep='\t', quote=FALSE, row.names=FALSE)
+```
