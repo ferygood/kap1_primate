@@ -1,0 +1,12 @@
+# Prepare input data for MEME-ChIP analysis (v5.5.7)
+
+```{r}
+hm <- read.table("../../peaks/macs3_results/human_TE_only.bed", sep="\t") #2077
+chimp <- read.table(
+    "../../peaks/macs3_results/chimp_TE_only.bed", sep="\t") #5754
+oran <- read.table("../../peaks/macs3_results/oran_TE_only.bed", sep="\t") #10098
+```
+
+I upload the human_TE_only.bed, chimp_TE_only.bed, and oran_TE_only.bed files to MEME-ChIP platform. 
+
+https://meme-suite.org/meme/info/status?service=MEMECHIP&id=appMEMECHIP_5.5.717321133616821376774291

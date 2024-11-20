@@ -1,0 +1,33 @@
+# Liftover comparison across species
+
+```{r}
+library(dplyr)
+```
+
+How many of the peaks are overlapped?
+
+```{r}
+hm_chimp <- read.table("../../peaks/liftover/human_chimp_overlap.bed", sep='\t')
+hm_chimp_distinct <- hm_chimp %>% distinct() #19
+
+hm_oran <- read.table("../../peaks/liftover/human_oran_overlap.bed", sep='\t')
+hm_oran_distinct <- hm_oran %>% distinct() #820
+
+chimp_oran <- read.table("../../peaks/liftover/chimp_oran_overlap.bed", sep='\t')
+chimp_oran_distinct <- chimp_oran %>% distinct() #178
+```
+
+```{r}
+hm_chimp_oran <- hm_chimp_distinct %>%
+    select(c(1,2,3,4)) %>%
+    inner_join(hm_oran_distinct[,c(1,2,3,4)], join_by(V4==V4)) #only 2
+```
+
+Let's see what kind of TEs are them:
+```{r}
+human_ref <- read.table("../../peaks/macs3_results/hm_TE.peak", sep='\t')
+hm_chimp_distinct_list <- hm_chimp_distinct$V4
+
+
+```
+
