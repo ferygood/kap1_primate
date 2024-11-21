@@ -10,3 +10,32 @@ oran <- read.table("../../peaks/macs3_results/oran_TE_only.bed", sep="\t") #1009
 I upload the human_TE_only.bed, chimp_TE_only.bed, and oran_TE_only.bed files to MEME-ChIP platform. 
 
 https://meme-suite.org/meme/info/status?service=MEMECHIP&id=appMEMECHIP_5.5.717321133616821376774291
+(link will be expired after 24th of Nov.)
+
+Then I can download the data from MEME result: `kap1_primate/meme_result`.
+The purpose is to get the motifs information from KRAB-ZNFs.
+
+```{r}
+human_summary <- read.table('../../meme_result/MEME_human/summary.tsv', 
+                            sep='\t', header=TRUE)
+
+chimp_summary <- read.table('../../meme_result/MEME_chimp/summary.tsv',
+                            sep='\t', header=TRUE)
+
+oran_summary <- read.table('../../meme_result/MEME_oran/summary.tsv',
+                           sep='\t', header=TRUE)
+```
+
+Get rows with KRAB-ZNF motif.
+```{r}
+hm_select <- human_summary[
+    apply(human_summary, 1, function(x) any(grepl("ZNF|TRIM28|PRDM9|ZKSCAN", x))), ] #36
+
+chimp_select <- chimp_summary[
+    apply(chimp_summary, 1, function(x) any(grepl("ZNF|TRIM28|PRDM9|ZKSCAN", x))), ] #2
+
+oran_select <- oran_summary[
+    apply(oran_summary, 1, function(x) any(grepl("ZNF|TRIM28|PRDM9|ZKSCAN", x))), ] #11
+
+```
+
