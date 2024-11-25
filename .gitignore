@@ -6,6 +6,8 @@
 refs/
 bcells_exp/GENCODE_incUnknown_genecounts_HSref
 bcells_exp/squire_count
+bcells_exp/TEtranscript/
+bcells_exp/tetranscriptDE.rds
 references/hg19_rsmk.bed
 references/panTro4_rsmk.bed
 references/ponAbe2_rsmk.bed
