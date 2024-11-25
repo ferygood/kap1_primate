@@ -1,6 +1,11 @@
 # Prepare input data for MEME-ChIP analysis (v5.5.7)
 
 ```{r}
+library(dplyr)
+```
+
+
+```{r}
 hm <- read.table("../../peaks/macs3_results/human_TE_only.bed", sep="\t") #2077
 chimp <- read.table(
     "../../peaks/macs3_results/chimp_TE_only.bed", sep="\t") #5754
@@ -38,4 +43,27 @@ oran_select <- oran_summary[
     apply(oran_summary, 1, function(x) any(grepl("ZNF|TRIM28|PRDM9|ZKSCAN", x))), ] #11
 
 ```
+
+merge dataframe and upload to supplementary tables
+```{r}
+df <- hm_select %>%
+    select(c(2:12)) %>%
+    mutate(species = "human")
+
+chimp_process <- chimp_select %>%
+    select(c(2:12)) %>%
+    mutate(species = "chimp")
+    
+oran_process <- oran_select %>%
+    select(c(2:12)) %>%
+    mutate(species = "orangutan")
+
+# rbind
+df_motif <- rbind(df, chimp_process, oran_process)
+
+df_motif <- df_motif[,c(12, seq(1:11))]
+rownames(df_motif) <- 1:nrow(df_motif)
+write.table(df_motif, file="../../tables/motifs.csv", sep=',', row.names = FALSE)
+```
+
 
