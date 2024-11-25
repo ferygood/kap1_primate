@@ -1,5 +1,0 @@
-# Use TEtranscript to quantify genes and TEs
-
-I need to first create TE annotation file for TEtranscripts, and I use a custom 
-perl script provided from the author of TEtranscripts (makeTEgtf.pl). I also put 
-a copy in the `src` folder.

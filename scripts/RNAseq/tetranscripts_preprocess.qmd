@@ -1,0 +1,212 @@
+# Use TEtranscript to quantify genes and TEs
+
+I need to first create TE annotation file for TEtranscripts, and I use a custom 
+perl script provided from the author of TEtranscripts (makeTEgtf.pl). I also put 
+a copy in the `src` folder.
+
+We import the expression file here
+human:
+```{r}
+hm_dir <- "../../bcells_exp/TEtranscript/hm_counts/"
+h1_1 <- read.table(paste0(hm_dir, "GM18558_Zeb2_neg.cntTable"), header = TRUE)
+h1_2 <- read.table(paste0(hm_dir, "GM18558_Zeb2_2.cntTable"), header = TRUE)
+h1_3 <- read.table(paste0(hm_dir, "GM18558_Zeb2_3.cntTable"), header = TRUE)
+h2_1 <- read.table(paste0(hm_dir, "GM18960_Zeb2_neg.cntTable"), header = TRUE)
+h2_2 <- read.table(paste0(hm_dir, "GM18960_Zeb2_2.cntTable"), header = TRUE)
+h2_3 <- read.table(paste0(hm_dir, "GM18960_Zeb2_3.cntTable"), header = TRUE)
+h3_1 <- read.table(paste0(hm_dir, "GM19240_Zeb2_neg.cntTable"), header = TRUE)
+h3_2 <- read.table(paste0(hm_dir, "GM19240_Zeb2_2.cntTable"), header = TRUE)
+h3_3 <- read.table(paste0(hm_dir, "GM19240_Zeb2_3.cntTable"), header = TRUE)
+
+# rename column
+colnames(h1_1)[2] <- "h1_1"
+colnames(h1_2)[2] <- "h1_2"
+colnames(h1_3)[2] <- "h1_3"
+colnames(h2_1)[2] <- "h2_1"
+colnames(h2_2)[2] <- "h2_2"
+colnames(h2_3)[2] <- "h2_3"
+colnames(h3_1)[2] <- "h3_1"
+colnames(h3_2)[2] <- "h3_2"
+colnames(h3_3)[2] <- "h3_3"
+
+# merge
+hm_exp <- Reduce(function(x, y){
+    merge(x, y, by="gene.TE", all=FALSE)
+}, list(h1_1, h1_2, h1_3, h2_1, h2_2, h2_3, h3_1, h3_2, h3_3))
+
+# split to TE and Gene
+hm_gene <- hm_exp[!grepl(":", hm_exp$gene.TE), ]
+hm_TE <- hm_exp[grepl(":", hm_exp$gene.TE), ]
+hm_TE$gene.TE <- sub(":.*", "", hm_TE$gene.TE)
+
+# modified column and row names
+colnames(hm_gene)[1] <- "gene"
+rownames(hm_gene) <- 1:nrow(hm_gene)
+
+colnames(hm_TE)[1] <- "TE"
+rownames(hm_TE) <- 1:nrow(hm_TE)
+```
+
+chimpanzee
+```{r}
+chimp_dir <- "../../bcells_exp/TEtranscript/chimp_counts/"
+c1_1 <- read.table(paste0(chimp_dir, "Chimp_Judith_Zeb2_neg.cntTable"), header = TRUE)
+c1_2 <- read.table(paste0(chimp_dir, "Chimp_Judith_Zeb2_2.cntTable"), header = TRUE)
+c1_3 <- read.table(paste0(chimp_dir, "Chimp_Judith_Zeb2_3.cntTable"), header = TRUE)
+c2_1 <- read.table(paste0(chimp_dir, "Chimp_Leo_Zeb2_neg.cntTable"), header = TRUE)
+c2_2 <- read.table(paste0(chimp_dir, "Chimp_Leo_Zeb2_2.cntTable"), header = TRUE)
+c2_3 <- read.table(paste0(chimp_dir, "Chimp_Leo_Zeb2_3.cntTable"), header = TRUE)
+c3_1 <- read.table(paste0(chimp_dir, "Chimp_Maryke_Zeb2_neg.cntTable"), header = TRUE)
+c3_2 <- read.table(paste0(chimp_dir, "Chimp_Maryke_Zeb2_2.cntTable"), header = TRUE)
+c3_3 <- read.table(paste0(chimp_dir, "Chimp_Maryke_Zeb2_3.cntTable"), header = TRUE)
+
+# rename column
+colnames(c1_1)[2] <- "c1_1"
+colnames(c1_2)[2] <- "c1_2"
+colnames(c1_3)[2] <- "c1_3"
+colnames(c2_1)[2] <- "c2_1"
+colnames(c2_2)[2] <- "c2_2"
+colnames(c2_3)[2] <- "c2_3"
+colnames(c3_1)[2] <- "c3_1"
+colnames(c3_2)[2] <- "c3_2"
+colnames(c3_3)[2] <- "c3_3"
+
+# merge
+chimp_exp <- Reduce(function(x, y){
+    merge(x, y, by="gene.TE", all=FALSE)
+}, list(c1_1, c1_2, c1_3, c2_1, c2_2, c2_3, c3_1, c3_2, c3_3))
+
+# split to TE and Gene
+chimp_gene <- chimp_exp[!grepl(":", chimp_exp$gene.TE), ]
+chimp_TE <- chimp_exp[grepl(":", chimp_exp$gene.TE), ]
+chimp_TE$gene.TE <- sub(":.*", "", chimp_TE$gene.TE)
+
+# modified column and row names
+colnames(chimp_gene)[1] <- "gene"
+rownames(chimp_gene) <- 1:nrow(chimp_gene)
+chimp_gene$gene <- substr(chimp_gene$gene, 1, 18)
+
+colnames(chimp_TE)[1] <- "TE"
+rownames(chimp_TE) <- 1:nrow(chimp_TE)
+```
+
+orangutan
+```{r}
+oran_dir <- "../../bcells_exp/TEtranscript/oran_counts/"
+o1_1 <- read.table(paste0(oran_dir, "Orang_Guchi_Zeb2_neg.cntTable"), header = TRUE)
+o1_2 <- read.table(paste0(oran_dir, "Orang_Guchi_Zeb2_2.cntTable"), header = TRUE)
+o1_3 <- read.table(paste0(oran_dir, "Orang_Guchi_Zeb2_3.cntTable"), header = TRUE)
+o2_1 <- read.table(paste0(oran_dir, "Orang_Jaqo_Zeb2_neg.cntTable"), header = TRUE)
+o2_2 <- read.table(paste0(oran_dir, "Orang_Jaqo_Zeb2_2.cntTable"), header = TRUE)
+o2_3 <- read.table(paste0(oran_dir, "Orang_Jaqo_Zeb2_3.cntTable"), header = TRUE)
+o3_1 <- read.table(paste0(oran_dir, "Orang_JingJing_Zeb2_neg.cntTable"), header = TRUE)
+o3_2 <- read.table(paste0(oran_dir, "Orang_JingJing_Zeb2_2.cntTable"), header = TRUE)
+o3_3 <- read.table(paste0(oran_dir, "Orang_JingJing_Zeb2_3.cntTable"), header = TRUE)
+
+# rename column
+colnames(o1_1)[2] <- "o1_1"
+colnames(o1_2)[2] <- "o1_2"
+colnames(o1_3)[2] <- "o1_3"
+colnames(o2_1)[2] <- "o2_1"
+colnames(o2_2)[2] <- "o2_2"
+colnames(o2_3)[2] <- "o2_3"
+colnames(o3_1)[2] <- "o3_1"
+colnames(o3_2)[2] <- "o3_2"
+colnames(o3_3)[2] <- "o3_3"
+
+# merge
+oran_exp <- Reduce(function(x, y){
+    merge(x, y, by="gene.TE", all=FALSE)
+}, list(o1_1, o1_2, o1_3, o2_1, o2_2, o2_3, o3_1, o3_2, o3_3))
+
+# split to TE and Gene
+oran_gene <- oran_exp[!grepl(":", oran_exp$gene.TE), ]
+oran_TE <- oran_exp[grepl(":", oran_exp$gene.TE), ]
+oran_TE$gene.TE <- sub(":.*", "", oran_TE$gene.TE)
+
+# modified column and row names
+colnames(oran_gene)[1] <- "gene"
+rownames(oran_gene) <- 1:nrow(oran_gene)
+oran_gene$gene <- substr(oran_gene$gene, 1, 18)
+
+colnames(oran_TE)[1] <- "TE"
+rownames(oran_TE) <- 1:nrow(oran_TE)
+```
+
+## Use TEKRABber
+```{r}
+library(TEKRABber)
+```
+
+```{r}
+hm_chimp_rmsk <- prepareRMSK("hg19", "panTro4")
+#hm_oran_rmsk <- prepareRMSK("hg19", "ponAbe2"), run src/hg19_ponAbe2_rmsk.R
+
+hm_chimp_scale <- orthologScale(
+    speciesRef = "hsapiens",
+    speciesCompare = "ptroglodytes",
+    geneCountRef = hm_gene,
+    geneCountCompare = chimp_gene,
+    teCountRef = hm_TE,
+    teCountCompare = chimp_TE,
+    rmsk = hm_chimp_rmsk,
+    version = 105
+)
+
+hm_oran_scale <- orthologScale(
+    speciesRef = "hsapiens",
+    speciesCompare = "pabelii",
+    geneCountRef = hm_gene,
+    geneCountCompare = oran_gene,
+    teCountRef = hm_TE,
+    teCountCompare = oran_TE,
+    rmsk = hm_oran_rmsk,
+    version = 105
+)
+```
+
+```{r}
+hm_chimp_input <- DECorrInputs(hm_chimp_scale)
+hm_oran_input <- DECorrInputs(hm_oran_scale)
+
+# DE analysis
+# human and chimp
+meta_hm_chimp <- data.frame(
+    species = c(rep("human", ncol(hm_chimp_scale$geneRef) -1),
+                rep("chimp", ncol(hm_chimp_scale$geneCompare) -1)))
+
+rownames(meta_hm_chimp) <- colnames(hm_chimp_input$geneInputDESeq2)
+meta_hm_chimp$species <- factor(meta_hm_chimp$species, levels=c("human", "chimp"))
+
+hmchimpDE <- DEgeneTE(
+    geneTable = hm_chimp_input$geneInputDESeq2,
+    teTable = hm_chimp_input$teInputDESeq2,
+    metadata = meta_hm_chimp,
+    expDesign = TRUE
+)
+
+# human and oran
+meta_hm_oran <- data.frame(
+    species = c(rep("human", ncol(hm_oran_scale$geneRef) -1),
+                rep("orangutan", ncol(hm_oran_scale$geneCompare) -1)))
+
+rownames(meta_hm_oran) <- colnames(hm_oran_input$geneInputDESeq2)
+meta_hm_oran$species <- factor(meta_hm_oran$species, levels=c("human", "orangutan"))
+
+hmoranDE <- DEgeneTE(
+    geneTable = hm_oran_input$geneInputDESeq2,
+    teTable = hm_oran_input$teInputDESeq2,
+    metadata = meta_hm_oran,
+    expDesign = TRUE
+)
+```
+
+```{r}
+# save RDS
+tetranscriptDE <- list(
+    'hmchimpDE' = hmchimpDE, 
+    'hmoranDE' = hmoranDE) 
+
+saveRDS(tetranscriptDE, file="../../bcells_exp/tetranscriptDE.rds")
+```
+
