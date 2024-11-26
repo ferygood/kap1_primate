@@ -1,0 +1,95 @@
+# Analyze TEtranscript expression data
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(twice)
+```
+
+```{r}
+data <- readRDS("../../bcells_exp/tetranscriptDE.rds")
+data("hmKZNFs337")
+data("hg19rmsk_info")
+
+# prepare gene list
+gene_df <- hmKZNFs337
+gene_df <- rbind(hmKZNFs337, c("ENSG00000130726", "KAP1"))
+
+# prepare TE list
+te_class_id <- c("SINE", "DNA", "LTR", "LINE", "SVA")
+te_list <- hg19rmsk_info %>% filter(class_id %in% te_class_id)
+```
+
+## Prepare PCA plot
+
+```{r}
+# human and chimpanzee
+gene_hm_chimp <- data$hmchimpDE$normalized_gene_counts %>%
+    data.frame() %>%
+    filter(rownames(.) %in% gene_df$ensembl_gene_id) #257
+
+te_hm_chimp <- data$hmchimpDE$normalized_te_counts %>%
+    data.frame() %>%
+    filter(rownames(.) %in% te_list$gene_id) #882
+
+df_hm_chimp <- rbind(gene_hm_chimp, te_hm_chimp) # merge
+df_hm_chimp <- df_hm_chimp %>% mutate(Row = rownames(.))
+
+# human and orangutan
+gene_hm_oran <- data$hmoranDE$normalized_gene_counts %>%
+    data.frame() %>%
+    filter(rownames(.) %in% gene_df$ensembl_gene_id) #200
+
+te_hm_oran <- data$hmoranDE$normalized_te_counts %>%
+    data.frame() %>%
+    filter(rownames(.) %in% te_list$gene_id) #790
+
+df_hm_oran <- rbind(gene_hm_oran, te_hm_oran)
+df_hm_oran <- df_hm_oran %>% mutate(Row = rownames(.))
+
+# intersect
+combine_df <- full_join(df_hm_chimp, df_hm_oran[,c(10:19)], by="Row") %>%
+    mutate(across(everything(), ~ replace_na(.x, 0)))
+rownames(combine_df) <- combine_df$Row
+combine_df <- combine_df %>% select(-Row)
+```
+
+Prepare PCA input
+```{r}
+combine_long <- combine_df %>%
+    rownames_to_column("gene") %>%
+    pivot_longer(-gene, names_to="Sample", values_to="Expression") %>%
+    mutate(Species = case_when(
+        grepl("^h", Sample) ~ "Human",
+        grepl("^c", Sample) ~ "Chimp",
+        grepl("^o", Sample) ~ "Orangutan"
+    ))
+
+combine_wide <- combine_long %>%
+    select(Sample, gene, Expression) %>%
+    pivot_wider(names_from = Sample, values_from=Expression) %>%
+    column_to_rownames("gene")
+
+pca_result <- prcomp(t(combine_wide), scale.=TRUE)
+
+pca_data <- as.data.frame(pca_result$x) %>%
+  rownames_to_column("Sample") %>%
+  mutate(Species = case_when(
+    grepl("^h", Sample) ~ "Human",
+    grepl("^c", Sample) ~ "Chimp",
+    grepl("^o", Sample) ~ "Orangutan"
+  ))
+
+pca_data$Species <- factor(pca_data$Species, levels = c("Human", "Chimp", "Orangutan"))
+
+g_znf_pca <- ggplot(pca_data, aes(x = PC1, y = PC2, fill = Species, label = Sample)) +
+  geom_point(size = 4, shape = 21, color="black") +
+  geom_text(vjust = -0.5, size=3, check_overlap = TRUE) + # Avoid text overlap
+  scale_fill_manual(values = c("Human" = "#e7b7b1", "Chimp" = "#c8eaee", "Orangutan" = "#b2beb5")) +
+  labs(title = "", x = "PC1", y = "PC2") +
+  theme_bw()
+
+ggsave(g_znf_pca, file="../../figures/PCA_KZNFs_TEs.jpg", width=5, height=4, dpi=300)
+```
+
