@@ -7,15 +7,16 @@ library(DESeq2)
 library(dplyr)
 library(twice)
 library(EnhancedVolcano)
+library(ggpubr)
 ```
 
 Load expression profiles, and only select KRAB-ZNFs, KAP1, and ZEB2 from the data.
 
 ```{r}
 data("hmKZNFs337")
-id_convert <- read.table("../zeb2_data/ids_names_extractedFromGTF.txt")
+id_convert <- read.table("../../bcells_exp/ids_names_extractedFromGTF.txt")
 
-df <- read.table("../zeb2_data/ReadCountTable_DESeq2_prefiltered_allSpecies.tsv",
+df <- read.table("../../bcells_exp/ReadCountTable_DESeq2_prefiltered_allSpecies.tsv",
                   header=T, sep="\t")
 
 df_select_gene <- df %>%
@@ -34,19 +35,30 @@ rownames(df_pca_data) <- colnames(df_pca_data_input)
 pca_result <- prcomp(df_pca_data, center=TRUE, scale.=TRUE)
 
 pca_data <- as.data.frame(pca_result$x)
-pca_data$Sample <- c("H1_2", "H1_3", "H1_neg", "H2_2", "H2_3", "H2_neg",
-                     "H3_2", "H3_3", "H3_neg", "C_judith_2", "C_judtih_3", "C_judith_neg",
-                     "C_Leo_2", "C_Leo_3", "C_Leo_neg", "C_maryke_2", "C_maryke_3",
-                     "C_maryke_neg", "O_guchi_2", "O_guchi_3", "O_guchi_neg",
-                     "O_jaqo_2", "O_jaqo_3", "O_jaqo_neg", "O_jingjing_2", "O_jingjing_3",
-                     "O_jingjing_neg")
+# order: GM18558, GM18960, GM19240
+# order: Judith, Leo, Maryke
+# order: Guchi, Jago, JingJing
+
+pca_data$Sample <- c("H1_2", "H1_3", "H1_1", "H2_2", "H2_3", "H2_1",
+                     "H3_2", "H3_3", "H3_1", "C1_2", "C1_3", "C1_1",
+                     "C2_2", "C2_3", "C2_1", "C3_2", "C3_3", "C3_1", 
+                     "O1_2", "O1_3", "O1_1",
+                     "O2_2", "O2_3", "O2_1", 
+                     "O3_2", "O3_3","O3_1")
 pca_data$Group <- rep(c("Human", "Chimp", "Orangutan"), each=9)
 
-ggplot(pca_data, aes(x=PC1, y=PC2, label=Sample, color=Group)) +
-    geom_point(size=3) +
-    geom_text(vjust= -0.5) +
-    scale_color_manual(values=c("Human"="red", "Chimp"="blue", "Orangutan"="darkgreen")) +
-    theme_bw()
+
+# Ensure the factor order for Species
+pca_data$Group <- factor(pca_data$Group, levels = c("Human", "Chimp", "Orangutan"))
+
+# Plot with adjustments
+g_znf_pca <- ggplot(pca_data, aes(x = PC1, y = PC2, label = Sample, fill = Group)) +
+  geom_point(size = 3, shape = 21, color = "black") + # Shape 21 allows fill color
+  geom_text(vjust = -0.5, size = 3, check_overlap = TRUE) + # Smaller text, avoid overlap
+  scale_fill_manual(values = c("Human" = "#e7b7b1", "Chimp" = "#c8eaee", "Orangutan" = "#b2beb5")) +
+  theme_bw()
+
+ggsave(g_znf_pca, file="../../figures/PCA_KZNFs_sanity_check.jpg", width=5, height=4, dpi=300)
 
 ```
 
@@ -90,15 +102,16 @@ res_h_filter <- res_h %>%
     data.frame() %>%
     filter(rownames(.) %in% c("TRIM28", "ZEB2", hmKZNFs337$external_gene_name))
 
-EnhancedVolcano(res_h_filter,
+E_hm <- EnhancedVolcano(res_h_filter,
     lab = rownames(res_h_filter),
     x = 'log2FoldChange',
     y = 'pvalue',
-    title = 'Human control versus Human siRNA-KD',
+    title = 'Human',
     pCutoff = 0.05,
     FCcutoff = 1.5,
     pointSize = 2.0,
-    labSize = 3.0)
+    labSize = 3.0,
+    subtitle="")
 ```
 
 
@@ -117,15 +130,16 @@ res_c_filter <- res_c %>%
     data.frame() %>%
     filter(rownames(.) %in% c("TRIM28", "ZEB2", hmKZNFs337$external_gene_name))
 
-EnhancedVolcano(res_c_filter,
+E_chimp <- EnhancedVolcano(res_c_filter,
     lab = rownames(res_c_filter),
     x = 'log2FoldChange',
     y = 'pvalue',
-    title = 'chimp control versus chimp siRNA-KD',
+    title = 'Chimp',
     pCutoff = 0.05,
     FCcutoff = 1.5,
     pointSize = 2.0,
-    labSize = 3.0)
+    labSize = 3.0,
+    subtitle = "")
 
 ```
 
@@ -144,14 +158,22 @@ res_o_filter <- res_o %>%
     data.frame() %>%
     filter(rownames(.) %in% c("TRIM28", "ZEB2", hmKZNFs337$external_gene_name))
 
-EnhancedVolcano(res_o_filter,
+E_oran <- EnhancedVolcano(res_o_filter,
     lab = rownames(res_o_filter),
     x = 'log2FoldChange',
     y = 'pvalue',
-    title = 'orangutan control versus oran siRNA-KD',
+    title = 'Orangutan',
     pCutoff = 0.05,
     FCcutoff = 1.5,
     pointSize = 2.0,
-    labSize = 3.0)
+    labSize = 3.0, subtitle = "")
+```
+
+merged figures
+```{r}
+g_merge <- ggarrange(g_znf_pca, E_hm, E_chimp, E_oran, nrow=2, 
+                     ncol=2, labels = c("(A)", "(B)", "(C)", "(D)"))
+
+ggsave(g_merge, file="../../figures/bcell_exp_sanity_check.jpg", dpi=200, width=13, height=11)
 ```
 
