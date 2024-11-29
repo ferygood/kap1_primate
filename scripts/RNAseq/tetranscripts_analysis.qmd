@@ -1,10 +1,11 @@
 # Analyze TEtranscript expression data
 
-```{r}
+```{r message=FALSE}
 library(dplyr)
 library(tidyr)
 library(tibble)
 library(twice)
+library(ggplot2)
 ```
 
 ```{r}
@@ -91,5 +92,87 @@ g_znf_pca <- ggplot(pca_data, aes(x = PC1, y = PC2, fill = Species, label = Samp
   theme_bw()
 
 ggsave(g_znf_pca, file="../../figures/PCA_KZNFs_TEs.jpg", width=5, height=4, dpi=300)
+```
+
+Next, I want to see how many DE TEs, KAP1, and KRAB-ZNFs between species
+```{r}
+# gene
+hmchimp_DE <- data$hmchimpDE$gene_res %>%
+    data.frame() %>%
+    filter(rownames(.) %in% gene_df$ensembl_gene_id) %>%
+    mutate(geneID=rownames(.)) %>%
+    left_join(gene_df, join_by(geneID==ensembl_gene_id)) %>%
+    filter(abs(log2FoldChange)>=1.5 & padj<0.05) #40
+
+hmoran_DE <- data$hmoranDE$gene_res %>%
+    data.frame() %>%
+    filter(rownames(.) %in% gene_df$ensembl_gene_id) %>%
+    mutate(geneID=rownames(.)) %>%
+    left_join(gene_df, join_by(geneID==ensembl_gene_id)) %>%
+    filter(abs(log2FoldChange)>=1.5 & padj<0.05) #39
+
+chimporan_DE <- data$chimporanDE$gene_res %>%
+   data.frame() %>%
+   mutate(ID=rownames(.)) %>%
+   left_join(data$ortholog_hmchimp, join_by(ID==compareEnsemblID)) %>% #12898
+   filter(refEnsemblID %in% gene_df$ensembl_gene_id) %>%
+   filter(abs(log2FoldChange)>=1.5 & padj<0.05) #37
+   
+       
+# TE
+hmchimp_TE <- data$hmchimpDE$te_res %>%
+    data.frame() %>%
+    filter(rownames(.) %in% te_list$gene_id) %>%
+    filter(abs(log2FoldChange)>=1.5 & padj<0.05) #91
+
+hmoran_TE <- data$hmoranDE$te_res %>%
+    data.frame() %>%
+    filter(rownames(.) %in% te_list$gene_id) %>%
+    filter(abs(log2FoldChange)>=1.5 & padj<0.05) #94
+
+chimporan_TE <- data$chimporanDE$te_res %>%
+    data.frame() %>%
+    filter(rownames(.) %in% te_list$gene_id) %>%
+    filter(abs(log2FoldChange)>=1.5 & padj<0.05) #93
+
+```
+
+Let us try to merge these DE results into a dataframe
+```{r}
+# add group
+# gene
+hmchimp_DE <- hmchimp_DE %>% mutate(group="H_vs_C")
+hmoran_DE <- hmoran_DE %>% mutate(group="H_vs_O")
+chimporan_DE <- chimporan_DE %>% mutate(group="C_vs_O")
+colnames(chimporan_DE)[7] <- "external_gene_name"
+
+select_column <- c("group", "external_gene_name", "baseMean", "log2FoldChange", "padj")
+
+df_DE_gene <- rbind(
+    hmchimp_DE[,select_column],
+    hmoran_DE[,select_column],
+    chimporan_DE[,select_column]
+) #116
+rownames(df_DE_gene) <- 1:nrow(df_DE_gene)
+
+# TE
+hmchimp_TE <- hmchimp_TE %>% mutate(group="H_vs_C", ID=rownames(.))
+hmoran_TE <- hmoran_TE %>% mutate(group="H_vs_O", ID=rownames(.))
+chimporan_TE <- chimporan_TE %>% mutate(group="C_vs_O", ID=rownames(.))
+select_col_name <- c("group", "ID", "baseMean", "log2FoldChange", "padj")
+
+df_DE_te <- rbind(
+    hmchimp_TE[,select_col_name],
+    hmoran_TE[,select_col_name],
+    chimporan_TE[,select_col_name]
+) #278
+rownames(df_DE_te) <- 1:nrow(df_DE_te)
+```
+
+save DE table
+```{r}
+write.table(df_DE_gene, "../../tables/DE_genes.csv", sep=",", row.names = F)
+write.table(df_DE_te, "../../tables/DE_TEs.csv", sep=",", row.names=F)
+# use read.csv("tables/DE_TEs.csv") to read
 ```
 

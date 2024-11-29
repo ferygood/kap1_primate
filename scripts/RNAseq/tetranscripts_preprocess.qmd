@@ -163,11 +163,24 @@ hm_oran_scale <- orthologScale(
     rmsk = hm_oran_rmsk,
     version = 105
 )
+
+# chimpanzee vs orangutan
+chimp_oran_scale <- orthologScale(
+    speciesRef = "ptroglodytes",
+    speciesCompare = "pabelii",
+    geneCountRef = chimp_gene,
+    geneCountCompare = oran_gene,
+    teCountRef = chimp_TE,
+    teCountCompare = oran_TE,
+    rmsk = chimp_oran_rmsk,
+    version = 105
+)
 ```
 
 ```{r}
 hm_chimp_input <- DECorrInputs(hm_chimp_scale)
 hm_oran_input <- DECorrInputs(hm_oran_scale)
+chimp_oran_input <- DECorrInputs(chimp_oran_scale)
 
 # DE analysis
 # human and chimp
@@ -199,13 +212,32 @@ hmoranDE <- DEgeneTE(
     metadata = meta_hm_oran,
     expDesign = TRUE
 )
+
+# chimp and oran
+meta_chimp_oran <- data.frame(
+    species = c(rep("chimp", ncol(chimp_oran_scale$geneRef) -1),
+                rep("orangutan", ncol(chimp_oran_scale$geneCompare) -1)))
+
+rownames(meta_chimp_oran) <- colnames(chimp_oran_input$geneInputDESeq2)
+meta_chimp_oran$species <- factor(meta_chimp_oran$species, levels=c("chimp", "orangutan"))
+
+chimporanDE <- DEgeneTE(
+    geneTable = chimp_oran_input$geneInputDESeq2,
+    teTable = chimp_oran_input$teInputDESeq2,
+    metadata = meta_chimp_oran,
+    expDesign = TRUE
+)
+
 ```
 
 ```{r}
 # save RDS
+# save the ortholog table comparison for converting ID to gene
 tetranscriptDE <- list(
     'hmchimpDE' = hmchimpDE, 
-    'hmoranDE' = hmoranDE) 
+    'hmoranDE' = hmoranDE, 
+    'chimporanDE' = chimporanDE,
+    'ortholog_hmchimp' = hm_chimp_scale$orthologTable[,c(1,3,7)]) 
 
 saveRDS(tetranscriptDE, file="../../bcells_exp/tetranscriptDE.rds")
 ```
