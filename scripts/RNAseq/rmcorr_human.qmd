@@ -11,15 +11,16 @@ library(ggplot2)
 library(tidyr)
 library(rmcorr)
 library(doParallel)
+library(GenomicFeatures)
 
 data("hmKZNFs337")
 ```
 
-Read expression file, read TE files:
+Read expression file, read TE files and combine, convert the raw counts to TPM:
 
 ```{r}
 # human 9 sample
-path="~/Desktop/phd/kap1_primate/bcells_exp/squire_count/human_count/"
+path="~/github/kap1_primate/bcells_exp/squire_count/human_count/"
 # GM18558
 h1 <- read.table(paste0(path,"GM18558_count/GM18558_Zeb2_neg_R1_TEcounts.txt"), header = T)
 h2 <- read.table(paste0(path,"GM18558_2/GM18558_Zeb2_2_R1_TEcounts.txt"), header = T)
@@ -79,51 +80,72 @@ rownames(df_h_TE) <- paste0("Hm", 1:nrow(df_h_TE))
 
 For human KRAB-ZNFs, we use TEtranscript count result
 ```{r}
+g_path <- "~/github/kap1_primate/bcells_exp/TEtranscript/hm_counts/"
 #GM18558
-k1 <- read.table(paste0(path,"GM18558_count/GM18558_Zeb2_neg_R1_refGenecounts.txt"), sep="\t")
-k2 <- read.table(paste0(path,"GM18558_2/GM18558_Zeb2_2_R1_refGenecounts.txt"), sep="\t")
-k3 <- read.table(paste0(path,"GM18558_3/GM18558_Zeb2_3_R1_refGenecounts.txt"), sep="\t")
+g1 <- read.table(paste0(g_path,"GM18558_Zeb2_neg.cntTable"), header=TRUE)
+g2 <- read.table(paste0(g_path,"GM18558_Zeb2_2.cntTable"), header=TRUE)
+g3 <- read.table(paste0(g_path,"GM18558_Zeb2_3.cntTable"), header=TRUE)
 
 #GM18960
-k4 <- read.table(paste0(path,"GM18960_count/GM18960_Zeb2_neg_R1_refGenecounts.txt"), sep="\t")
-k5 <- read.table(paste0(path,"GM18960_2/GM18960_Zeb2_2_R1.fastq_refGenecounts.txt"), sep="\t")
-k6 <- read.table(paste0(path,"GM18960_3/GM18960_Zeb2_3_R1.fastq_refGenecounts.txt"), sep="\t")
+g4 <- read.table(paste0(g_path,"GM18960_Zeb2_neg.cntTable"), header=TRUE)
+g5 <- read.table(paste0(g_path,"GM18960_Zeb2_2.cntTable"), header=TRUE)
+g6 <- read.table(paste0(g_path,"GM18960_Zeb2_3.cntTable"), header=TRUE)
 
 #GM19240
-k7 <- read.table(paste0(path,"GM19240_count/GM19240_Zeb2_neg_R1_refGenecounts.txt"), sep="\t")
-k8 <- read.table(paste0(path,"GM19240_2/GM19240_Zeb2_2_R1.fastq_refGenecounts.txt"), sep="\t")
-k9 <- read.table(paste0(path,"GM19240_3/GM19240_Zeb2_3_R1.fastq_refGenecounts.txt"), sep="\t")
+g7 <- read.table(paste0(g_path,"GM19240_Zeb2_neg.cntTable"), header=TRUE)
+g8 <- read.table(paste0(g_path,"GM19240_Zeb2_2.cntTable"), header=TRUE)
+g9 <- read.table(paste0(g_path,"GM19240_Zeb2_3.cntTable"), header=TRUE)
+```
 
-select_kznf <- function(df, col_name){
-    
-    df_select <- df %>%
-        select(c(4,5)) %>%
-        filter(V4 %in% c(hmKZNFs337$external_gene_name, "TRIM28"))
-    df_select <- df_select[!duplicated(df_select$V4), ]
-    
-    colnames(df_select) <- c("geneName", col_name)
-    df_select
+```{r}
+g_list <- list(g1=g1, g2=g2, g3=g3, g4=g4, g5=g5, g6=g6, g7=g7, g8=g8, g9=g9)
+merged_g <- Reduce(function(x,y) full_join(x, y, by="gene.TE"), g_list)
+colnames(merged_g)[-1] <- names(g_list)
+filtered_g <- merged_g %>% filter(grepl("^ENSG", gene.TE))
+colnames(filtered_g)[1] <- "ENSID"
+
+# create gene length file
+txdb <- makeTxDbFromGFF("~/Downloads/hg19.ensGene.gtf")
+gene_length <- genes(txdb) %>%
+    as.data.frame() %>%
+    mutate(length = width) %>%
+    dplyr::select(ENSID=gene_id, length)
+rownames(gene_length) <- 1:nrow(gene_length)
+
+# add gene length information to expression
+filtered_g <- filtered_g %>%
+    left_join(gene_length, by="ENSID")
+
+# calculate TPM
+calculate_tpm <- function(counts, lengths) {
+  rpk <- counts / (lengths / 1000)  # RPK calculation
+  scaling_factor <- sum(rpk) / 1e6  # Scaling factor for TPM
+  tpm <- rpk / scaling_factor       # TPM calculation
+  return(tpm)
 }
 
-k1_f <- select_kznf(k1, "h1")
-k2_f <- select_kznf(k2, "h2")
-k3_f <- select_kznf(k3, "h3")
-k4_f <- select_kznf(k4, "h4")
-k5_f <- select_kznf(k5, "h5")
-k6_f <- select_kznf(k6, "h6")
-k7_f <- select_kznf(k7, "h7")
-k8_f <- select_kznf(k8, "h8")
-k9_f <- select_kznf(k9, "h9")
+# convert raw counts to TPM
+filtered_g <- filtered_g %>%
+    mutate(across(starts_with("g"), ~ calculate_tpm(.x, length)))
+```
 
-df_k_merge <- Reduce(function(x, y) merge(x, y, by = "geneName", all = FALSE), 
-                    list(k1_f, k2_f, k3_f, k4_f, k5_f, k6_f, k7_f, k8_f, k9_f))
 
-df_k_merge_nozero <- df_k_merge %>% filter(rowSums(.==0) < 2) #233
+```{r}
+# select genes for correlation analysis
+g_select <- rbind(hmKZNFs337, c("ENSG00000130726", "TRIM28"))
+filtered_g <- filtered_g %>%
+    inner_join(g_select, join_by(ENSID==ensembl_gene_id))
+    
+rownames(filtered_g) <- filtered_g$external_gene_name
+filtered_g_nozero <- filtered_g %>%
+    filter(rowSums(.==0) < 3) %>%
+    dplyr::select(c(2:10)) #294
+
 ```
 
 ## after obtaining dataframe
 input of TE: `df_h_TE`, 
-input of KRAB-ZNFs: `df_k_merge_nozero`
+input of KRAB-ZNFs: `filtered_g_nozero`
 the function I am going to use is `src/corrOrthologTE_rmcorr.R`
 ```{r}
 te589 <- read.table("../../tables/TE_589_intersect.csv", sep=',', header=TRUE)
@@ -142,25 +164,22 @@ h_sample_meta <- paste0("H", rep(1:3, each=3))
 df_h_TE_input <- df_h_TE_filter[,c(2:10)]
 rownames(df_h_TE_input) <- df_h_TE_filter$ID
 
-df_k_input <- df_k_merge_nozero[,c(2:10)]
-rownames(df_k_input) <- df_k_merge_nozero$geneName
-
 Sys.time()
 hm_rmcorr <- corrOrthologTE_rmcorr(
-    geneInput = df_k_input,
+    geneInput = filtered_g_nozero,
     teInput = df_h_TE_input,
     numCore = 2,
     sample_meta = h_sample_meta
 )
-Sys.time() #25min
+Sys.time() #20~25min
 ```
 ```{r}
 hm_rmcorr_addTE <- hm_rmcorr %>%
     left_join(df_h_TE_filter[,c(1,11)], join_by(teName==ID))
 
 hm_rmcorr_addTE_sig <- hm_rmcorr_addTE %>%
-    filter(padj<0.05) #35667
-
+    filter(padj<0.05 & abs(coef)>0.5) #16581
+    
 write.csv(hm_rmcorr_addTE_sig, file="../../tables/hm_rmcorr_result.csv")
 ```
 

@@ -19,7 +19,7 @@ Read expression file, read TE files:
 
 ```{r}
 # human 9 sample
-path="~/Desktop/phd/kap1_primate/bcells_exp/squire_count/chimp_count/"
+path="~/github/kap1_primate/bcells_exp/squire_count/chimp_count/"
 # Judith
 h1 <- read.table(paste0(path,"Judith_count/Chimp_Judith_Zeb2_neg_R1_TEcounts.txt"), header = T)
 h2 <- read.table(paste0(path,"Judith_2/Chimp_Judith_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
@@ -37,11 +37,28 @@ h9 <- read.table(paste0(path,"Maryke_3/Chimp_Maryke_Zeb2_3_R1.fastq_TEcounts.txt
 
 filter_select <- function(df, sample){
     
+    # 1. preprocess
     df_process <- df %>%
         filter(score >= 90) %>%
-        select(c(4,5))
-    colnames(df_process) <- c("ID", sample)
+        mutate(len = TE_stop - TE_start) %>%
+        select(c(4,17,19))
+    colnames(df_process) <- c("ID", sample, "length")
     df_process <- df_process[!duplicated(df_process$ID), ]
+    
+    # 2. calculate RPK
+    df_process <- df_process %>%
+        mutate(RPK = !!sym(sample) / (length / 1000))  # Calculate Reads Per Kilobase
+    
+    # 3. calculate TPM
+    rpk_sum <- sum(df_process$RPK)  # Sum of all RPKs
+    df_process <- df_process %>%
+        mutate(TPM = RPK / rpk_sum * 1e6)  # Normalize RPK to TPM
+    
+    # Return the processed dataframe with TPM
+    df_process_result <- df_process[,c(1,5)]
+    colnames(df_process_result) <- c("ID", sample)
+    
+    return(df_process_result)
 }
 
 h1_f <- filter_select(h1, "h1")
