@@ -1,0 +1,149 @@
+# Caluclate TE:KRAB-ZNF from SQuIRE output
+
+From previous script: `squire.qmd`, I obtain 27 mapping and quantifying files.
+Here I demonstrate how to calculate their correlations using TEKRABber
+
+```{r message=FALSE}
+library(dplyr)
+library(TEKRABber)
+library(twice)
+library(ggplot2)
+library(tidyr)
+library(rmcorr)
+library(doParallel)
+
+data("hmKZNFs337")
+```
+
+Read expression file, read TE files:
+
+```{r}
+# human 9 sample
+path="~/Desktop/phd/kap1_primate/bcells_exp/squire_count/chimp_count/"
+# Judith
+h1 <- read.table(paste0(path,"Judith_count/Chimp_Judith_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h2 <- read.table(paste0(path,"Judith_2/Chimp_Judith_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+h3 <- read.table(paste0(path,"Judith_3/Chimp_Judith_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+
+# Leo
+h4 <- read.table(paste0(path,"Leo_count/Chimp_Leo_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h5 <- read.table(paste0(path,"Leo_2/Chimp_Leo_Zeb2_2_R1_TEcounts.txt"), header = T)
+h6 <- read.table(paste0(path,"Leo_3/Chimp_Leo_Zeb2_3_R1_TEcounts.txt"), header = T)
+
+# Maryke
+h7 <- read.table(paste0(path,"Maryke_count/Chimp_Maryke_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h8 <- read.table(paste0(path,"Maryke_2/Chimp_Maryke_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+h9 <- read.table(paste0(path,"Maryke_3/Chimp_Maryke_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+
+filter_select <- function(df, sample){
+    
+    df_process <- df %>%
+        filter(score >= 90) %>%
+        select(c(4,5))
+    colnames(df_process) <- c("ID", sample)
+    df_process <- df_process[!duplicated(df_process$ID), ]
+}
+
+h1_f <- filter_select(h1, "h1")
+h2_f <- filter_select(h2, "h2")
+h3_f <- filter_select(h3, "h3")
+h4_f <- filter_select(h4, "h4")
+h5_f <- filter_select(h5, "h5")
+h6_f <- filter_select(h6, "h6")
+h7_f <- filter_select(h7, "h7")
+h8_f <- filter_select(h8, "h8")
+h9_f <- filter_select(h9, "h9")
+
+# merge
+df_h_TE <- Reduce(function(x, y) merge(x, y, by = "ID", all = FALSE), 
+                    list(h1_f, h2_f, h3_f, h4_f, h5_f, h6_f, h7_f, h8_f, h9_f)) #3006
+rownames(df_h_TE) <- paste0("Hm", 1:nrow(df_h_TE))
+```
+
+For human KRAB-ZNFs,
+```{r}
+#Judith
+k1 <- read.table(paste0(path,"Judith_count/Chimp_Judith_Zeb2_neg_R1_refGenecounts.txt"), sep="\t")
+k2 <- read.table(paste0(path,"Judith_2/Chimp_Judith_Zeb2_2_R1.fastq_refGenecounts.txt"), sep="\t")
+k3 <- read.table(paste0(path,"Judith_3/Chimp_Judith_Zeb2_3_R1.fastq_refGenecounts.txt"), sep="\t")
+
+#Leo
+k4 <- read.table(paste0(path,"Leo_count/Chimp_Leo_Zeb2_neg_R1_refGenecounts.txt"), sep="\t")
+k5 <- read.table(paste0(path,"Leo_2/Chimp_Leo_Zeb2_2_R1_refGenecounts.txt"), sep="\t")
+k6 <- read.table(paste0(path,"Leo_3/Chimp_Leo_Zeb2_3_R1_refGenecounts.txt"), sep="\t")
+
+#Maryke
+k7 <- read.table(paste0(path,"Maryke_count/Chimp_Maryke_Zeb2_neg_R1_refGenecounts.txt"), sep="\t")
+k8 <- read.table(paste0(path,"Maryke_2/Chimp_Maryke_Zeb2_2_R1.fastq_refGenecounts.txt"), sep="\t")
+k9 <- read.table(paste0(path,"Maryke_3/Chimp_Maryke_Zeb2_3_R1.fastq_refGenecounts.txt"), sep="\t")
+
+select_kznf <- function(df, col_name){
+    
+    df_select <- df %>%
+        select(c(4,5)) %>%
+        filter(V4 %in% c(hmKZNFs337$external_gene_name, "TRIM28"))
+    df_select <- df_select[!duplicated(df_select$V4), ]
+    
+    colnames(df_select) <- c("geneName", col_name)
+    df_select
+}
+
+k1_f <- select_kznf(k1, "h1")
+k2_f <- select_kznf(k2, "h2")
+k3_f <- select_kznf(k3, "h3")
+k4_f <- select_kznf(k4, "h4")
+k5_f <- select_kznf(k5, "h5")
+k6_f <- select_kznf(k6, "h6")
+k7_f <- select_kznf(k7, "h7")
+k8_f <- select_kznf(k8, "h8")
+k9_f <- select_kznf(k9, "h9")
+
+df_k_merge <- Reduce(function(x, y) merge(x, y, by = "geneName", all = FALSE), 
+                    list(k1_f, k2_f, k3_f, k4_f, k5_f, k6_f, k7_f, k8_f, k9_f))
+
+df_k_merge_nozero <- df_k_merge %>% filter(rowSums(.==0) < 2) #233
+```
+
+## after obtaining dataframe
+input of TE: `df_h_TE`, 
+input of KRAB-ZNFs: `df_k_merge_nozero`
+the function I am going to use is `src/corrOrthologTE_rmcorr.R`
+```{r}
+te589 <- read.table("../../tables/TE_589_intersect.csv", sep=',', header=TRUE)
+
+# separate TE ID to a new column for filtering data
+df_h_TE_filter <- df_h_TE %>% 
+    mutate(teName = sapply(
+        stringr::str_split(ID, "\\|"), 
+        function(x) stringr::str_extract(x[4], "^[^:]+"))) %>%
+    filter(teName %in% te589$X) #2906
+
+
+h_sample_meta <- paste0("H", rep(1:3, each=3))
+
+# prepare input format
+df_h_TE_input <- df_h_TE_filter[,c(2:10)]
+rownames(df_h_TE_input) <- df_h_TE_filter$ID
+
+df_k_input <- df_k_merge_nozero[,c(2:10)]
+rownames(df_k_input) <- df_k_merge_nozero$geneName
+
+Sys.time()
+hm_rmcorr <- corrOrthologTE_rmcorr(
+    geneInput = df_k_input,
+    teInput = df_h_TE_input,
+    numCore = 2,
+    sample_meta = h_sample_meta
+)
+Sys.time() #25min
+```
+```{r}
+hm_rmcorr_addTE <- hm_rmcorr %>%
+    left_join(df_h_TE_filter[,c(1,11)], join_by(teName==ID))
+
+hm_rmcorr_addTE_sig <- hm_rmcorr_addTE %>%
+    filter(padj<0.05) #35667
+
+write.csv(hm_rmcorr_addTE_sig, file="../../tables/hm_rmcorr_result.csv")
+```
+
