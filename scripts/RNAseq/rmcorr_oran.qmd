@@ -1,0 +1,213 @@
+# Caluclate TE:KRAB-ZNF from SQuIRE output
+
+From previous script: `squire.qmd`, I obtain 27 mapping and quantifying files.
+Here I demonstrate how to calculate their correlations using TEKRABber.
+Note: this file is first duplicated from rmcorr_human.qmd. Thus, some variables 
+look like human sample.
+
+```{r message=FALSE}
+library(dplyr)
+library(TEKRABber)
+library(twice)
+library(ggplot2)
+library(tidyr)
+library(rmcorr)
+library(doParallel)
+library(GenomicFeatures)
+library(biomaRt)
+
+data("hmKZNFs337")
+```
+
+Read expression file, read TE files:
+
+```{r}
+# orangutan 9 sample
+path="~/github/kap1_primate/bcells_exp/squire_count/oran_count/"
+# Guchi
+h1 <- read.table(paste0(path,"guchi_count/Orang_Guchi_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h2 <- read.table(paste0(path,"Orang_Guchi_2/Orang_Guchi_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+h3 <- read.table(paste0(path,"Orang_Guchi_3/Orang_Guchi_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+
+# Jaqo
+h4 <- read.table(paste0(path,"jaqo_count/Orang_Jaqo_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h5 <- read.table(paste0(path,"Orang_Jaqo_2/Orang_Jaqo_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+h6 <- read.table(paste0(path,"Orang_Jaqo_3/Orang_Jaqo_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+
+# JingJing
+h7 <- read.table(paste0(path,"jingjing_count/Orang_JingJing_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h8 <- read.table(paste0(path,"Orang_JingJing_2/Orang_JingJing_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+h9 <- read.table(paste0(path,"Orang_JingJing_3/Orang_JingJing_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+
+filter_select <- function(df, sample){
+    
+    # 1. preprocess
+    df_process <- df %>%
+        filter(score >= 90) %>%
+        mutate(len = TE_stop - TE_start) %>%
+        dplyr::select(c(4,17,19))
+    colnames(df_process) <- c("ID", sample, "length")
+    df_process <- df_process[!duplicated(df_process$ID), ]
+    
+    # 2. calculate RPK
+    df_process <- df_process %>%
+        mutate(RPK = !!sym(sample) / (length / 1000))  # Calculate Reads Per Kilobase
+    
+    # 3. calculate TPM
+    rpk_sum <- sum(df_process$RPK)  # Sum of all RPKs
+    df_process <- df_process %>%
+        mutate(TPM = RPK / rpk_sum * 1e6)  # Normalize RPK to TPM
+    
+    # Return the processed dataframe with TPM
+    df_process_result <- df_process[,c(1,5)]
+    colnames(df_process_result) <- c("ID", sample)
+    
+    return(df_process_result)
+}
+
+h1_f <- filter_select(h1, "o1")
+h2_f <- filter_select(h2, "o2")
+h3_f <- filter_select(h3, "o3")
+h4_f <- filter_select(h4, "o4")
+h5_f <- filter_select(h5, "o5")
+h6_f <- filter_select(h6, "o6")
+h7_f <- filter_select(h7, "o7")
+h8_f <- filter_select(h8, "o8")
+h9_f <- filter_select(h9, "o9")
+
+# merge
+df_h_TE <- Reduce(function(x, y) merge(x, y, by = "ID", all = FALSE), 
+                    list(h1_f, h2_f, h3_f, h4_f, h5_f, h6_f, h7_f, h8_f, h9_f)) #3006
+rownames(df_h_TE) <- paste0("Orang", 1:nrow(df_h_TE))
+```
+
+For Oranganzee KRAB-ZNFs,
+```{r}
+g_path <- "~/github/kap1_primate/bcells_exp/TEtranscript/oran_counts/"
+#Guchi
+g1 <- read.table(paste0(g_path,"Orang_Guchi_Zeb2_neg.cntTable"), header=TRUE)
+g2 <- read.table(paste0(g_path,"Orang_Guchi_Zeb2_2.cntTable"), header=TRUE)
+g3 <- read.table(paste0(g_path,"Orang_Guchi_Zeb2_3.cntTable"), header=TRUE)
+
+#Jaqo
+g4 <- read.table(paste0(g_path,"Orang_Jaqo_Zeb2_neg.cntTable"), header=TRUE)
+g5 <- read.table(paste0(g_path,"Orang_Jaqo_Zeb2_2.cntTable"), header=TRUE)
+g6 <- read.table(paste0(g_path,"Orang_Jaqo_Zeb2_3.cntTable"), header=TRUE)
+
+#JingJing
+g7 <- read.table(paste0(g_path,"Orang_JingJing_Zeb2_neg.cntTable"), header=TRUE)
+g8 <- read.table(paste0(g_path,"Orang_JingJing_Zeb2_2.cntTable"), header=TRUE)
+g9 <- read.table(paste0(g_path,"Orang_JingJing_Zeb2_3.cntTable"), header=TRUE)
+```
+
+```{r}
+g_list <- list(g1=g1, g2=g2, g3=g3, g4=g4, g5=g5, g6=g6, g7=g7, g8=g8, g9=g9)
+merged_g <- Reduce(function(x,y) full_join(x, y, by="gene.TE"), g_list)
+colnames(merged_g)[-1] <- names(g_list)
+filtered_g <- merged_g %>% filter(grepl("^ENSPPYG", gene.TE))
+colnames(filtered_g)[1] <- "ENSID"
+
+# create gene length file
+txdb <- makeTxDbFromGFF("~/Downloads/ponAbe2.ensGene.gtf")
+gene_length <- genes(txdb) %>%
+    as.data.frame() %>%
+    mutate(length = width) %>%
+    dplyr::select(ENSID=gene_id, length)
+rownames(gene_length) <- 1:nrow(gene_length)
+```
+
+We need additional step to convert ENSPTRG to ENSG
+
+```{r}
+ref <- useEnsembl("ensembl", dataset = "pabelii_gene_ensembl", version=105)
+compare <- useEnsembl("ensembl", dataset = "hsapiens_gene_ensembl", version=105)
+
+orthologTable <- getLDS(
+    attributes = c("ensembl_gene_id"), mart = ref,
+    attributesL = c("ensembl_gene_id"), martL = compare
+)
+
+```
+
+```{r}
+# add gene length information to expression
+filtered_g <- filtered_g %>%
+    left_join(gene_length, by="ENSID")
+
+# calculate TPM
+calculate_tpm <- function(counts, lengths) {
+  rpk <- counts / (lengths / 1000)  # RPK calculation
+  scaling_factor <- sum(rpk) / 1e6  # Scaling factor for TPM
+  tpm <- rpk / scaling_factor       # TPM calculation
+  return(tpm)
+}
+
+# convert raw counts to TPM
+filtered_g <- filtered_g %>%
+    mutate(across(starts_with("g"), ~ calculate_tpm(.x, length)))
+
+# convert ENSPTRG to ENSG
+filtered_g$ENSID <- substr(filtered_g$ENSID, 1, 18)
+filtered_g <- filtered_g %>%
+    left_join(orthologTable, join_by(ENSID==Gene.stable.ID))
+```
+
+
+```{r}
+# select genes for correlation analysis
+g_select <- rbind(hmKZNFs337, c("ENSG00000130726", "TRIM28"))
+
+# need the ortholog information
+filtered_g <- filtered_g %>%
+    inner_join(g_select, join_by(Gene.stable.ID.1==ensembl_gene_id)) #213
+    
+rownames(filtered_g) <- filtered_g$external_gene_name
+filtered_g_nozero <- filtered_g %>%
+    filter(rowSums(.==0) < 3) %>%
+    dplyr::select(c(2:10)) #192
+```
+
+
+## after obtaining dataframe
+input of TE: `df_h_TE`, 
+input of KRAB-ZNFs: `df_k_merge_nozero`
+the function I am going to use is `src/corrOrthologTE_rmcorr.R`
+```{r}
+te589 <- read.table("../../tables/TE_589_intersect.csv", sep=',', header=TRUE)
+
+# separate TE ID to a new column for filtering data
+df_h_TE_filter <- df_h_TE %>% 
+    mutate(teName = sapply(
+        stringr::str_split(ID, "\\|"), 
+        function(x) stringr::str_extract(x[4], "^[^:]+"))) %>%
+    filter(teName %in% te589$X) #5795
+
+
+o_sample_meta <- paste0("O", rep(1:3, each=3))
+
+# prepare input format
+df_h_TE_input <- df_h_TE_filter[,c(2:10)]
+rownames(df_h_TE_input) <- df_h_TE_filter$ID
+
+Sys.time()
+Orang_rmcorr <- corrOrthologTE_rmcorr(
+    geneInput = filtered_g_nozero,
+    teInput = df_h_TE_input,
+    numCore = 2,
+    sample_meta = o_sample_meta
+)
+Sys.time() #25min
+```
+
+
+```{r}
+Orang_rmcorr_addTE <- Orang_rmcorr %>%
+    left_join(df_h_TE_filter[,c(1,11)], join_by(teName==ID))
+
+Orang_rmcorr_addTE_sig <- Orang_rmcorr_addTE %>%
+    filter(pvalue<0.01) #123243
+
+write.csv(
+    Orang_rmcorr_addTE_sig[,c(1,2,3,6)], file="../../tables/Orang_rmcorr_result.csv")
+```
+

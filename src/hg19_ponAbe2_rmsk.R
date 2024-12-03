@@ -11,15 +11,15 @@ ponAbe2 <- read.table("~/Downloads/ponAbe3.fa.out", header = TRUE,
                       skip=1, fill=TRUE, stringsAsFactors = FALSE, row.names = NULL)
 
 hg19_select <- hg19 %>%
-    select(c(sequence, begin, repeat., class.family))
+    dplyr::select(c(sequence, begin, repeat., class.family))
 colnames(hg19_select)[c(1, 2, 3, 4)] <- c("start", "end", "repName", "repClass")
 
 panTro4_select <- panTro4 %>%
-    select(c(sequence, begin, repeat., class.family))
+    dplyr::select(c(sequence, begin, repeat., class.family))
 colnames(panTro4_select)[c(1, 2, 3, 4)] <- c("start", "end", "repName", "repClass")
 
 ponAbe2_select <- ponAbe2 %>%
-    select(c(sequence, begin, repeat., class.family))
+    dplyr::select(c(sequence, begin, repeat., class.family))
 colnames(ponAbe2_select)[c(1, 2, 3, 4)] <- c("start", "end", "repName", "repClass")
 
 hg19_len <- hg19_select %>%
