@@ -22,22 +22,22 @@ data("hmKZNFs337")
 Read expression file, read TE files:
 
 ```{r}
-# human 9 sample
-path="~/github/kap1_primate/bcells_exp/squire_count/chimp_count/"
-# Judith
-h1 <- read.table(paste0(path,"Judith_count/Chimp_Judith_Zeb2_neg_R1_TEcounts.txt"), header = T)
-h2 <- read.table(paste0(path,"Judith_2/Chimp_Judith_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
-h3 <- read.table(paste0(path,"Judith_3/Chimp_Judith_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+# orangutan 9 sample
+path="~/github/kap1_primate/bcells_exp/squire_count/oran_count/"
+# Guchi
+h1 <- read.table(paste0(path,"guchi_count/Orang_Guchi_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h2 <- read.table(paste0(path,"Orang_Guchi_2/Orang_Guchi_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+h3 <- read.table(paste0(path,"Orang_Guchi_3/Orang_Guchi_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
 
-# Leo
-h4 <- read.table(paste0(path,"Leo_count/Chimp_Leo_Zeb2_neg_R1_TEcounts.txt"), header = T)
-h5 <- read.table(paste0(path,"Leo_2/Chimp_Leo_Zeb2_2_R1_TEcounts.txt"), header = T)
-h6 <- read.table(paste0(path,"Leo_3/Chimp_Leo_Zeb2_3_R1_TEcounts.txt"), header = T)
+# Jaqo
+h4 <- read.table(paste0(path,"jaqo_count/Orang_Jaqo_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h5 <- read.table(paste0(path,"Orang_Jaqo_2/Orang_Jaqo_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+h6 <- read.table(paste0(path,"Orang_Jaqo_3/Orang_Jaqo_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
 
-# Maryke
-h7 <- read.table(paste0(path,"Maryke_count/Chimp_Maryke_Zeb2_neg_R1_TEcounts.txt"), header = T)
-h8 <- read.table(paste0(path,"Maryke_2/Chimp_Maryke_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
-h9 <- read.table(paste0(path,"Maryke_3/Chimp_Maryke_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+# JingJing
+h7 <- read.table(paste0(path,"jingjing_count/Orang_JingJing_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h8 <- read.table(paste0(path,"Orang_JingJing_2/Orang_JingJing_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+h9 <- read.table(paste0(path,"Orang_JingJing_3/Orang_JingJing_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
 
 filter_select <- function(df, sample){
     
@@ -65,50 +65,50 @@ filter_select <- function(df, sample){
     return(df_process_result)
 }
 
-h1_f <- filter_select(h1, "c1")
-h2_f <- filter_select(h2, "c2")
-h3_f <- filter_select(h3, "c3")
-h4_f <- filter_select(h4, "c4")
-h5_f <- filter_select(h5, "c5")
-h6_f <- filter_select(h6, "c6")
-h7_f <- filter_select(h7, "c7")
-h8_f <- filter_select(h8, "c8")
-h9_f <- filter_select(h9, "c9")
+h1_f <- filter_select(h1, "o1")
+h2_f <- filter_select(h2, "o2")
+h3_f <- filter_select(h3, "o3")
+h4_f <- filter_select(h4, "o4")
+h5_f <- filter_select(h5, "o5")
+h6_f <- filter_select(h6, "o6")
+h7_f <- filter_select(h7, "o7")
+h8_f <- filter_select(h8, "o8")
+h9_f <- filter_select(h9, "o9")
 
 # merge
 df_h_TE <- Reduce(function(x, y) merge(x, y, by = "ID", all = FALSE), 
                     list(h1_f, h2_f, h3_f, h4_f, h5_f, h6_f, h7_f, h8_f, h9_f)) #3006
-rownames(df_h_TE) <- paste0("chimp", 1:nrow(df_h_TE))
+rownames(df_h_TE) <- paste0("Orang", 1:nrow(df_h_TE))
 ```
 
-For chimpanzee KRAB-ZNFs,
+For Oranganzee KRAB-ZNFs,
 ```{r}
-g_path <- "~/github/kap1_primate/bcells_exp/TEtranscript/chimp_counts/"
-#Judith
-g1 <- read.table(paste0(g_path,"Chimp_Judith_Zeb2_neg.cntTable"), header=TRUE)
-g2 <- read.table(paste0(g_path,"Chimp_Judith_Zeb2_2.cntTable"), header=TRUE)
-g3 <- read.table(paste0(g_path,"Chimp_Judith_Zeb2_3.cntTable"), header=TRUE)
+g_path <- "~/github/kap1_primate/bcells_exp/TEtranscript/oran_counts/"
+#Guchi
+g1 <- read.table(paste0(g_path,"Orang_Guchi_Zeb2_neg.cntTable"), header=TRUE)
+g2 <- read.table(paste0(g_path,"Orang_Guchi_Zeb2_2.cntTable"), header=TRUE)
+g3 <- read.table(paste0(g_path,"Orang_Guchi_Zeb2_3.cntTable"), header=TRUE)
 
-#Leo
-g4 <- read.table(paste0(g_path,"Chimp_Leo_Zeb2_neg.cntTable"), header=TRUE)
-g5 <- read.table(paste0(g_path,"Chimp_Leo_Zeb2_2.cntTable"), header=TRUE)
-g6 <- read.table(paste0(g_path,"Chimp_Leo_Zeb2_3.cntTable"), header=TRUE)
+#Jaqo
+g4 <- read.table(paste0(g_path,"Orang_Jaqo_Zeb2_neg.cntTable"), header=TRUE)
+g5 <- read.table(paste0(g_path,"Orang_Jaqo_Zeb2_2.cntTable"), header=TRUE)
+g6 <- read.table(paste0(g_path,"Orang_Jaqo_Zeb2_3.cntTable"), header=TRUE)
 
-#Maryke
-g7 <- read.table(paste0(g_path,"Chimp_Maryke_Zeb2_neg.cntTable"), header=TRUE)
-g8 <- read.table(paste0(g_path,"Chimp_Maryke_Zeb2_2.cntTable"), header=TRUE)
-g9 <- read.table(paste0(g_path,"Chimp_Maryke_Zeb2_3.cntTable"), header=TRUE)
+#JingJing
+g7 <- read.table(paste0(g_path,"Orang_JingJing_Zeb2_neg.cntTable"), header=TRUE)
+g8 <- read.table(paste0(g_path,"Orang_JingJing_Zeb2_2.cntTable"), header=TRUE)
+g9 <- read.table(paste0(g_path,"Orang_JingJing_Zeb2_3.cntTable"), header=TRUE)
 ```
 
 ```{r}
 g_list <- list(g1=g1, g2=g2, g3=g3, g4=g4, g5=g5, g6=g6, g7=g7, g8=g8, g9=g9)
 merged_g <- Reduce(function(x,y) full_join(x, y, by="gene.TE"), g_list)
 colnames(merged_g)[-1] <- names(g_list)
-filtered_g <- merged_g %>% filter(grepl("^ENSPTRG", gene.TE))
+filtered_g <- merged_g %>% filter(grepl("^ENSPPYG", gene.TE))
 colnames(filtered_g)[1] <- "ENSID"
 
 # create gene length file
-txdb <- makeTxDbFromGFF("~/Downloads/panTro4.ensGene.gtf")
+txdb <- makeTxDbFromGFF("~/Downloads/ponAbe2.ensGene.gtf")
 gene_length <- genes(txdb) %>%
     as.data.frame() %>%
     mutate(length = width) %>%
@@ -119,7 +119,7 @@ rownames(gene_length) <- 1:nrow(gene_length)
 We need additional step to convert ENSPTRG to ENSG
 
 ```{r}
-ref <- useEnsembl("ensembl", dataset = "ptroglodytes_gene_ensembl", version=105)
+ref <- useEnsembl("ensembl", dataset = "pabelii_gene_ensembl", version=105)
 compare <- useEnsembl("ensembl", dataset = "hsapiens_gene_ensembl", version=105)
 
 orthologTable <- getLDS(
@@ -159,12 +159,12 @@ g_select <- rbind(hmKZNFs337, c("ENSG00000130726", "TRIM28"))
 
 # need the ortholog information
 filtered_g <- filtered_g %>%
-    inner_join(g_select, join_by(Gene.stable.ID.1==ensembl_gene_id)) #269
+    inner_join(g_select, join_by(Gene.stable.ID.1==ensembl_gene_id)) #213
     
 rownames(filtered_g) <- filtered_g$external_gene_name
 filtered_g_nozero <- filtered_g %>%
     filter(rowSums(.==0) < 3) %>%
-    dplyr::select(c(2:10)) #238
+    dplyr::select(c(2:10)) #192
 ```
 
 
@@ -180,33 +180,34 @@ df_h_TE_filter <- df_h_TE %>%
     mutate(teName = sapply(
         stringr::str_split(ID, "\\|"), 
         function(x) stringr::str_extract(x[4], "^[^:]+"))) %>%
-    filter(teName %in% te589$X) #6096
+    filter(teName %in% te589$X) #5795
 
 
-c_sample_meta <- paste0("C", rep(1:3, each=3))
+o_sample_meta <- paste0("O", rep(1:3, each=3))
 
 # prepare input format
 df_h_TE_input <- df_h_TE_filter[,c(2:10)]
 rownames(df_h_TE_input) <- df_h_TE_filter$ID
 
 Sys.time()
-chimp_rmcorr <- corrOrthologTE_rmcorr(
+Orang_rmcorr <- corrOrthologTE_rmcorr(
     geneInput = filtered_g_nozero,
     teInput = df_h_TE_input,
-    numCore = 3,
-    sample_meta = c_sample_meta
+    numCore = 2,
+    sample_meta = o_sample_meta
 )
 Sys.time() #25min
 ```
 
 
 ```{r}
-chimp_rmcorr_addTE <- chimp_rmcorr %>%
+Orang_rmcorr_addTE <- Orang_rmcorr %>%
     left_join(df_h_TE_filter[,c(1,11)], join_by(teName==ID))
 
-chimp_rmcorr_addTE_sig <- chimp_rmcorr_addTE %>%
-    filter(pvalue<0.01) #39136, lowest padj 0.2
+Orang_rmcorr_addTE_sig <- Orang_rmcorr_addTE %>%
+    filter(pvalue<0.01) #123243
 
-write.csv(chimp_rmcorr_addTE_sig, file="../../tables/chimp_rmcorr_result.csv")
+write.csv(
+    Orang_rmcorr_addTE_sig[,c(1,2,3,6)], file="../../tables/Orang_rmcorr_result.csv")
 ```
 

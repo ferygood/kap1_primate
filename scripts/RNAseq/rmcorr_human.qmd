@@ -42,7 +42,7 @@ filter_select <- function(df, sample){
     df_process <- df %>%
         filter(score >= 90) %>%
         mutate(len = TE_stop - TE_start) %>%
-        select(c(4,17,19))
+        dplyr::select(c(4,17,19))
     colnames(df_process) <- c("ID", sample, "length")
     df_process <- df_process[!duplicated(df_process$ID), ]
     
@@ -178,7 +178,7 @@ hm_rmcorr_addTE <- hm_rmcorr %>%
     left_join(df_h_TE_filter[,c(1,11)], join_by(teName==ID))
 
 hm_rmcorr_addTE_sig <- hm_rmcorr_addTE %>%
-    filter(padj<0.05 & abs(coef)>0.5) #16581
+    filter(pvalue<0.01) #67155
     
 write.csv(hm_rmcorr_addTE_sig, file="../../tables/hm_rmcorr_result.csv")
 ```
