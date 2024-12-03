@@ -4,4 +4,4 @@
 4.  `squire.qmd` this file demonstrate how we use the SQUIRE package in command line.
 5.  `tetranscripts_analysis.qmd` Do DE analysis in orthologous genes and transposable element across species. Output of DE genes and TEs tables are saved (DE_genes.csv, DE_TEs.csv).
 6.  `tetranscripts_preprocess.qmd` The output of TEtranscript are raw counts. Thus, it is needed to first normalize and merge the results as an input for TEKRABber. The output is saved as `../../bcells_exp/tetranscriptDE.rds` including `hmchimpDE`, `hmoranDE`, `chimporanDE`, and `ortholog_hmchimp`.
-7.  
+7.  `filter_rmcorr.qmd` Use ChIP-seq detected results to filter if there are overlapped with rmcorr results across species.

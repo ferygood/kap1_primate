@@ -1,0 +1,41 @@
+# Find overlap between ChIP-seq and RNA-seq result
+
+```{r}
+# load essential packages
+library(dplyr)
+```
+
+```{r}
+# load ChIP-seq data
+te589 <- read.table("../../tables/TE_589_intersect.csv", sep=',', header=TRUE)
+hm_TE <- te589 %>% filter(Human==TRUE) #246
+chimp_TE <- te589 %>% filter(Chimp==TRUE) #429
+oran_TE <- te589 %>% filter(Orangutan==TRUE) #493
+
+# load correlation result
+hmcorr <- read.csv("../../tables/hm_rmcorr_result.csv") #67155
+chimpcorr <- read.csv("../../tables/chimp_rmcorr_result.csv") #39136
+orancorr <- read.csv("../../tables/orang_rmcorr_result.csv") #123243
+
+# KRAB-ZNFs list
+hm_k <- c("ZNF257", "ZNF384", "ZNF460", "ZNF140", "ZNF524", "ZNF675", "ZKSCAN3",
+          "ZNF417", "ZKSCAN5", "ZNF281", "ZNF816", "ZNF416", "ZNF136", "ZNF320",
+          "ZNF354C", "ZNF93", "ZNF135", "ZNF684", "PRDM9", "ZNF574", "ZNF692",
+          "ZNF768", "ZNF238", "ZNF449", "ZNF418", "ZNF263", "ZNF306", "ZNF331",
+          "ZNF701", "ZNF76", "ZNF667")
+chimp_k <- c("ZKSCAN3", "ZNF85")
+oran_k <- c("ZNF549", "ZNF238", "ZNF460", "ZNF784", "ZNF135", "ZNF549", "ZNF460",
+            "ZNF682", "ZNF574", "ZNF684", "ZNF692")
+```
+
+## filter TEs and KRAB-ZNFs
+
+```{r}
+hmcorr_ft <- hmcorr %>% filter(teName.y %in% hm_TE$X & geneName %in% hm_k) #3523
+
+chimpcorr_ft <- chimpcorr %>% 
+    filter(teName.y %in% chimp_TE$X & geneName %in% chimp_k) #55
+
+orancorr_ft <- orancorr %>%
+    filter(teName.y %in% oran_TE$X & geneName %in% oran_k) #573
+```
