@@ -74,6 +74,8 @@ combine_wide <- combine_long %>%
 
 pca_result <- prcomp(t(combine_wide), scale.=TRUE)
 
+variance_explained <- c(pca_result$sdev^2) / sum(pca_result$sdev^2) * 100
+
 pca_data <- as.data.frame(pca_result$x) %>%
   rownames_to_column("Sample") %>%
   mutate(Species = case_when(
@@ -88,7 +90,7 @@ g_znf_pca <- ggplot(pca_data, aes(x = PC1, y = PC2, fill = Species, label = Samp
   geom_point(size = 4, shape = 21, color="black") +
   geom_text(vjust = -0.5, size=3, check_overlap = TRUE) + # Avoid text overlap
   scale_fill_manual(values = c("Human" = "#e7b7b1", "Chimp" = "#c8eaee", "Orangutan" = "#b2beb5")) +
-  labs(title = "", x = "PC1", y = "PC2") +
+  labs(title = "", x = "PC1 (24.89%)", y = "PC2 (15.9%)") +
   theme_bw()
 
 ggsave(g_znf_pca, file="../../figures/PCA_KZNFs_TEs.jpg", width=5, height=4, dpi=300)

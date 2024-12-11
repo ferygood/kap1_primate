@@ -14,39 +14,48 @@ oran <- read.table("../../peaks/macs3_results/oran_TE_only.bed", sep="\t") #1009
 
 I upload the human_TE_only.bed, chimp_TE_only.bed, and oran_TE_only.bed files to MEME-ChIP platform. 
 
-https://meme-suite.org/meme/info/status?service=MEMECHIP&id=appMEMECHIP_5.5.717321133616821376774291
-(link will be expired after 24th of Nov.)
-
 Then I can download the data from MEME result: `kap1_primate/meme_result`.
 The purpose is to get the motifs information from KRAB-ZNFs.
 
 ```{r}
-human_summary <- read.table('../../meme_result/MEME_human/summary.tsv', 
+human_hocomoco <- read.table('../../meme_result/Human_HOCOMOCO.tsv', 
                             sep='\t', header=TRUE)
 
-chimp_summary <- read.table('../../meme_result/MEME_chimp/summary.tsv',
+human_jaspar <- read.table('../../meme_result/Human_JASPAR.tsv', 
                             sep='\t', header=TRUE)
 
-oran_summary <- read.table('../../meme_result/MEME_oran/summary.tsv',
+chimp_jaspar <- read.table('../../meme_result/Chimp_JASPAR.tsv',
+                            sep='\t', header=TRUE)
+
+oran_jaspar <- read.table('../../meme_result/Oran_JASPAR.tsv',
                            sep='\t', header=TRUE)
 ```
 
 Get rows with KRAB-ZNF motif.
 ```{r}
-hm_select <- human_summary[
-    apply(human_summary, 1, function(x) any(grepl("ZNF|TRIM28|PRDM9|ZKSCAN", x))), ] #36
+hm_hocomoco_select <- human_hocomoco[
+    apply(human_hocomoco, 1, 
+          function(x) any(grepl("ZNF|TRIM28|PRDM9|ZKSCAN", x))), ] #3
 
-chimp_select <- chimp_summary[
-    apply(chimp_summary, 1, function(x) any(grepl("ZNF|TRIM28|PRDM9|ZKSCAN", x))), ] #2
+hm_jaspar_select <- human_jaspar[
+    apply(human_jaspar, 1, 
+          function(x) any(grepl("ZNF|TRIM28|PRDM9|ZKSCAN", x))),] #34
 
-oran_select <- oran_summary[
-    apply(oran_summary, 1, function(x) any(grepl("ZNF|TRIM28|PRDM9|ZKSCAN", x))), ] #11
+chimp_select <- chimp_jaspar[
+    apply(chimp_jaspar, 1, function(x) any(grepl("ZNF|TRIM28|PRDM9|ZKSCAN", x))), ] #4
+
+oran_select <- oran_jaspar[
+    apply(oran_jaspar, 1, function(x) any(grepl("ZNF|TRIM28|PRDM9|ZKSCAN", x))), ] #12
 
 ```
 
 merge dataframe and upload to supplementary tables
 ```{r}
-df <- hm_select %>%
+hm_hocomo <- human_hocomoco %>%
+    select(c(2:12)) %>%
+    mutate(species = "human")
+
+hm_jaspar <- human_jaspar %>%
     select(c(2:12)) %>%
     mutate(species = "human")
 
@@ -59,7 +68,7 @@ oran_process <- oran_select %>%
     mutate(species = "orangutan")
 
 # rbind
-df_motif <- rbind(df, chimp_process, oran_process)
+df_motif <- rbind(hm_hocomo, hm_jaspar, chimp_process, oran_process)
 
 df_motif <- df_motif[,c(12, seq(1:11))]
 rownames(df_motif) <- 1:nrow(df_motif)
