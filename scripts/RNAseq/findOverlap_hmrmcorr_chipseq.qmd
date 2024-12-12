@@ -1,0 +1,71 @@
+This script execute code to find overlap between rmcorr results and chipseq peak result.
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(GenomicRanges)
+```
+
+First load the data,
+
+```{r}
+hmcorr <- read.csv("../../tables/hm_rmcorr_result.csv") # human rmcorr result
+hm_only_TE <- read.table("../../peaks/macs3_results/human.np") # chipseq result
+#chipexo <- read.table("../../chip-exo/GSM2466566_ZNF460_peaks_processed_score_signal_exo.bed")
+```
+
+Create GRanges object for finding overlap,
+```{r}
+hmcorr_modified <- hmcorr %>%
+    separate(teName, into = c("chr", "start", "end", "rest"), sep="\\|", remove = FALSE)
+
+hmcorr_modified$start <- as.numeric(hmcorr_modified$start)
+hmcorr_modified$end <- as.numeric(hmcorr_modified$end)
+
+# create GRange ok
+gr_rmcorr <- GRanges(
+    seqnames = hmcorr_modified$chr,
+    ranges = IRanges(start = hmcorr_modified$start - 10000,
+                     end = hmcorr_modified$end + 10000))
+
+gr_TE <- GRanges(
+    seqnames = hm_only_TE$V1,
+    ranges = IRanges(start = hm_only_TE$V2,
+                     end = hm_only_TE$V3))
+
+#gr_chipexo <- GRanges(
+#    seqnames = chipexo$V1,
+#    ranges = IRanges(start = chipexo$V2, 
+#                     end = chipexo$V3)
+#)
+
+overlap <- findOverlaps(gr_rmcorr, gr_TE)
+overlap_peak <- hmcorr_modified[subjectHits(overlap), ]
+```
+
+we use the same method above, and see what is the result in chimpanzee and orangutan
+```{r}
+chimpcorr <- read.csv("../../tables/chimp_rmcorr_result.csv") # human rmcorr result
+chimp_peak <- read.table("../../peaks/macs3_results/chimp.np") # chipseq result
+
+chimpcorr_modified <- chimpcorr %>%
+    separate(teName, into = c("chr", "start", "end", "rest"), sep="\\|", remove = FALSE)
+
+chimpcorr_modified$start <- as.numeric(chimpcorr_modified$start)
+chimpcorr_modified$end <- as.numeric(chimpcorr_modified$end)
+
+gr_rmcorr_chimp <- GRanges(
+    seqnames = chimpcorr_modified$chr,
+    ranges = IRanges(start = chimpcorr_modified$start - 10000,
+                     end = chimpcorr_modified$end + 10000))
+
+gr_peak_chimp <- GRanges(
+    seqnames = chimp_peak$V1,
+    ranges = IRanges(start = chimp_peak$V2,
+                     end = chimp_peak$V3))
+
+overlap_chimp <- findOverlaps(gr_rmcorr_chimp, gr_peak_chimp)
+chimp_corr_overlap <- chimpcorr_modified[subjectHits(overlap_chimp), ]
+chimp_corr_overlap_unique <- chimp_corr_overlap[!duplicated(chimp_corr_overlap$X), ] #246
+```
+
