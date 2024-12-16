@@ -10,62 +10,111 @@ First load the data,
 
 ```{r}
 hmcorr <- read.csv("../../tables/hm_rmcorr_result.csv") # human rmcorr result
-hm_only_TE <- read.table("../../peaks/macs3_results/human.np") # chipseq result
-#chipexo <- read.table("../../chip-exo/GSM2466566_ZNF460_peaks_processed_score_signal_exo.bed")
+chipexo_tableS6 <- read.csv("../../tables/chipexo_TableS6_sig.csv")
 ```
 
-Create GRanges object for finding overlap,
 ```{r}
-hmcorr_modified <- hmcorr %>%
+hmcorr_process <- hmcorr %>% 
+    select(c(2,3,4,7)) %>%
+    mutate(pair = paste0(teName.y, ":", geneName)) %>%
+    filter(pair %in% chipexo_tableS6$pair) #745
+
+unique_kznfs <- unique(hmcorr_process$geneName) #62
+
+hmcorr_modified <- hmcorr_process %>%
     separate(teName, into = c("chr", "start", "end", "rest"), sep="\\|", remove = FALSE)
 
 hmcorr_modified$start <- as.numeric(hmcorr_modified$start)
 hmcorr_modified$end <- as.numeric(hmcorr_modified$end)
 
-# create GRange ok
+# create GRange for correlation result
 gr_rmcorr <- GRanges(
     seqnames = hmcorr_modified$chr,
-    ranges = IRanges(start = hmcorr_modified$start - 10000,
-                     end = hmcorr_modified$end + 10000))
-
-gr_TE <- GRanges(
-    seqnames = hm_only_TE$V1,
-    ranges = IRanges(start = hm_only_TE$V2,
-                     end = hm_only_TE$V3))
-
-#gr_chipexo <- GRanges(
-#    seqnames = chipexo$V1,
-#    ranges = IRanges(start = chipexo$V2, 
-#                     end = chipexo$V3)
-#)
-
-overlap <- findOverlaps(gr_rmcorr, gr_TE)
-overlap_peak <- hmcorr_modified[subjectHits(overlap), ]
+    ranges = IRanges(start = hmcorr_modified$start,
+                     end = hmcorr_modified$end))
 ```
 
-we use the same method above, and see what is the result in chimpanzee and orangutan
 ```{r}
-chimpcorr <- read.csv("../../tables/chimp_rmcorr_result.csv") # human rmcorr result
-chimp_peak <- read.table("../../peaks/macs3_results/chimp.np") # chipseq result
+chipexo <- read.table("../../chip-exo/GSM2466477_ZNF135_peaks_processed_score_signal_exo.bed")
+```
 
-chimpcorr_modified <- chimpcorr %>%
-    separate(teName, into = c("chr", "start", "end", "rest"), sep="\\|", remove = FALSE)
+```{r}
+# Initialize an empty data frame to store overlap results
+df_overlap <- data.frame()
 
-chimpcorr_modified$start <- as.numeric(chimpcorr_modified$start)
-chimpcorr_modified$end <- as.numeric(chimpcorr_modified$end)
+for (kznf in unique_kznfs) {
+    # Define the file path
+    path <- "~/github/kap1_primate/chip-exo/"
+    
+    # Get the list of files in the directory
+    files <- list.files(path, full.names = TRUE)
+    
+    # Find files containing the kznf name
+    matching_files <- files[grepl(kznf, basename(files), ignore.case = TRUE)]
+    
+    # If matching files are found, process them
+    if (length(matching_files) > 0) {
+        cat("Processing file for ", kznf, "\n")
+        
+        # Loop through all matching files for the current kznf
+        for (file in matching_files) {
+            # Read the ChIP-exo file
+            chipexo <- read.table(file, header = FALSE)
+            
+            # Create a GRanges object for ChIP-exo data
+            gr_chipexo <- GRanges(
+                seqnames = chipexo$V1,
+                ranges = IRanges(start = chipexo$V2, 
+                                 end = chipexo$V3)
+            )
+            
+            # Find overlaps between hmcorr (rmcorr) and ChIP-exo regions
+            overlap <- findOverlaps(gr_rmcorr, gr_chipexo)
+            
+            # Extract corresponding rows from both datasets
+            overlap_corr <- hmcorr_modified[queryHits(overlap),]
+            overlap_chipexo <- chipexo[subjectHits(overlap), ] 
+            
+            if (nrow(overlap_corr)>0){
+                # Merge overlapping data and append to the result
+                df_merge <- cbind(overlap_corr, overlap_chipexo)
+                df_overlap <- rbind(df_overlap, df_merge)
+            }
+        }
+        
+    } else {
+        cat("No files found for", kznf, "\n")
+    }
+}
 
-gr_rmcorr_chimp <- GRanges(
-    seqnames = chimpcorr_modified$chr,
-    ranges = IRanges(start = chimpcorr_modified$start - 10000,
-                     end = chimpcorr_modified$end + 10000))
+# Print a summary of the results
+cat("Total overlaps identified:", nrow(df_overlap), "\n")
 
-gr_peak_chimp <- GRanges(
-    seqnames = chimp_peak$V1,
-    ranges = IRanges(start = chimp_peak$V2,
-                     end = chimp_peak$V3))
+```
 
-overlap_chimp <- findOverlaps(gr_rmcorr_chimp, gr_peak_chimp)
-chimp_corr_overlap <- chimpcorr_modified[subjectHits(overlap_chimp), ]
-chimp_corr_overlap_unique <- chimp_corr_overlap[!duplicated(chimp_corr_overlap$X), ] #246
+save the table
+```{r}
+write.csv(df_overlap, file="../../tables/human_153_pair.csv", row.names=F)
+```
+
+
+There are total 153 overlaps identified in the data. There are 28 unique KRAB-ZNFs and 34 unique TEs. In total, there are 65 link. (Unfortunately, there is no overlap with our KAP1 ChIP-seq result)
+
+Next, we try to draw a network for visualization,
+I try to method, one is locus-specific TEs, the other is TE subfamily
+```{r}
+library(RCy3)
+
+df_overlap_add <- df_overlap %>%
+    mutate(teChr = paste(teName.y, "-", chr))
+
+node_locus <- data.frame(
+    id=c(unique(df_overlap_add$geneName), unique(df_overlap_add$teChr))
+)
+
+link <- df_overlap_add[,c(1,16,7)]
+colnames(link) <- c("source", "target", "coefficient")
+
+createNetworkFromDataFrames(node_locus, link)
 ```
 
