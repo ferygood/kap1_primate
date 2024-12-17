@@ -1,0 +1,54 @@
+# Visualize DE genes and TEs results
+
+Load essential packages
+```{r}
+library(ComplexHeatmap)
+library(tidyr)
+library(dplyr)
+library(circlize)
+```
+
+Read DE expression data
+```{r}
+DE_df <- read.csv("../../tables/DE_TEs.csv")
+```
+
+```{r}
+#use ComplexHeatmap
+#comparison group: H_vs_C, H_vs_O, C_vs_O
+#expression value baseMean
+heatmap_data <- DE_df %>%
+    select(group, ID, log2FoldChange) %>%
+    pivot_wider(names_from = group, values_from=log2FoldChange) %>%
+    column_to_rownames(var="ID") # set ID (TE) as row names
+
+# split group based on TE family, otherwise it is too long
+
+
+
+```
+
+Visualize with heatmap
+```{r}
+# Create the heatmap
+Heatmap(
+  heatmap_data,
+  name = "Log Exp.",
+  na_col = "#706f6f",
+  show_row_names = TRUE,
+  show_column_names = TRUE,
+  row_title = "",
+  column_title = "",
+  border = TRUE,         
+  cluster_rows = FALSE,
+  cluster_columns = FALSE,
+  row_names_gp = gpar(fontsize=4),
+  rect_gp = gpar(col="black", lwd=0.8),
+  width = 2 * unit(4, "mm"),
+  height = 18 * unit(16, "mm")
+)
+
+
+
+```
+
