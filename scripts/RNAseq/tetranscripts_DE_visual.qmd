@@ -1,54 +1,99 @@
 # Visualize DE genes and TEs results
 
+## 1. DE TEs:
+
 Load essential packages
 ```{r}
 library(ComplexHeatmap)
 library(tidyr)
 library(dplyr)
 library(circlize)
+library(twice)
 ```
 
-Read DE expression data
+Read DE expression data and annotation file, then subset data:
 ```{r}
 DE_df <- read.csv("../../tables/DE_TEs.csv")
+data("hg19rmsk_info")
+
+# subset data
+DE_df_set <- DE_df %>%
+    left_join(hg19rmsk_info, join_by(ID==gene_id))
+
+DE_df_SINE <- DE_df_set %>%
+    filter(class_id %in% c("SINE", "SVA")) #29
+
+DE_df_LINE <- DE_df_set %>% filter(class_id %in% "LINE") #25
+DE_df_LTR <- DE_df_set %>% filter(class_id %in% "LTR") #174
+DE_df_DNA <- DE_df_set %>% filter(class_id %in% "DNA") #50
 ```
 
 ```{r}
-#use ComplexHeatmap
-#comparison group: H_vs_C, H_vs_O, C_vs_O
-#expression value baseMean
-heatmap_data <- DE_df %>%
+heatmap_te <- function(df, class_name){
+    
+    heatmap_data <- df %>%
     select(group, ID, log2FoldChange) %>%
     pivot_wider(names_from = group, values_from=log2FoldChange) %>%
     column_to_rownames(var="ID") # set ID (TE) as row names
-
-# split group based on TE family, otherwise it is too long
-
-
-
+    
+    H <- Heatmap(
+      heatmap_data,
+      name = "Log Exp.",
+      na_col = "#706f6f",
+      show_row_names = TRUE,
+      show_column_names = TRUE,
+      row_title = "",
+      column_title = class_name,
+      border = TRUE,         
+      cluster_rows = FALSE,
+      cluster_columns = FALSE,
+      column_names_rot = 45, 
+      row_names_gp = gpar(fontsize=6),
+      rect_gp = gpar(col="black", lwd=0.8),
+      width = 2 * unit(8, "mm"),
+      height = 10 * unit(nrow(df)/6, "mm")
+    )
+    
+    H
+}
 ```
 
-Visualize with heatmap
+run the function and save figure as JPG
 ```{r}
-# Create the heatmap
-Heatmap(
-  heatmap_data,
-  name = "Log Exp.",
-  na_col = "#706f6f",
-  show_row_names = TRUE,
-  show_column_names = TRUE,
-  row_title = "",
-  column_title = "",
-  border = TRUE,         
-  cluster_rows = FALSE,
-  cluster_columns = FALSE,
-  row_names_gp = gpar(fontsize=4),
-  rect_gp = gpar(col="black", lwd=0.8),
-  width = 2 * unit(4, "mm"),
-  height = 18 * unit(16, "mm")
-)
+png("../../figures/DE_LINE_heatmap.jpg", width=6, height=6, units="in",res=1200)
+H_LINE <- heatmap_te(DE_df_LINE, "LINE")
+H_LINE
+dev.off()
 
+png("../../figures/DE_LTR_heatmap.jpg", width=6, height=13, units="in",res=1200)
+H_LTR <- heatmap_te(DE_df_LTR, "LTR")
+H_LTR
+dev.off()
 
+png("../../figures/DE_SINE_heatmap.jpg", width=6, height=6, units="in",res=1200)
+H_SINE <- heatmap_te(DE_df_SINE, "SINE")
+H_SINE
+dev.off()
+
+png("../../figures/DE_DNA_heatmap.jpg", width=6, height=6, units="in",res=1200)
+H_DNA <- heatmap_te(DE_df_DNA, "DNA")
+H_DNA
+dev.off()
 
 ```
+
+
+## 2. DE KRAB-ZNFs
+```{r}
+DE_kznfs <- read.csv("../../tables/DE_genes.csv")
+
+DE_kznfs$ID <- DE_kznfs$external_gene_name
+
+K <- heatmap_te(DE_kznfs, "KRAB-ZNFs")
+
+png("../../figures/DE_KZNFs_heatmap.jpg", width=6, height=10, units="in",res=1200)
+K
+dev.off()
+```
+
 
