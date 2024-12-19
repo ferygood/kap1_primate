@@ -1,0 +1,30 @@
+# Check motifs in 159 KRAB-ZNFs in ChIP-exo data
+
+```{r}
+library(dplyr)
+library(twice)
+library(GenomicRanges)
+
+data("hg19rmsk_gtf")
+chipexo <- read.table("../../chip-exo/GSM2466477_ZNF135_peaks_processed_score_signal_exo.bed")
+```
+
+
+```{r}
+gr_TE <- GRanges(
+    seqnames = hg19rmsk_gtf$seqnames,
+    ranges = IRanges(start=hg19rmsk_gtf$start, end=hg19rmsk_gtf$end)
+)
+
+gr_chipexo <- GRanges(
+    seqnames = chipexo$V1,
+    ranges = IRanges(start=chipexo$V2, end=chipexo$V3)
+)
+
+overlap <- findOverlaps(gr_TE, gr_chipexo)
+TE_range <- hg19rmsk_gtf[queryHits(overlap), ]
+
+```
+
+
+

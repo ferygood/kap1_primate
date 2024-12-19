@@ -1,10 +1,280 @@
 # Check repression of specific pair of data
+
+Another hypothesis could be if there are no overlap between our ChIP-seq and RNA-seq, it might point to that these TEs are repressed. Thus, we could not observe their expression in our locus-specific expression data.
+
+First, we load our locus specific TE expression from RNA-seq across species. We refer to the process we used in `rmcorr_human.qmd`, `rmcorr_chimp.qmd` and `rmcorr_oran.qmd`.
+
 ```{r}
 library(dplyr)
+library(tidyr)
+library(GenomicRanges)
 ```
 
-Load 153 overlapped pair
+add ChIP-seq range information from peak data
+
 ```{r}
-overlap153 <- read.csv("../../tables/human_153_pair.csv")
+hm_np <- read.table("../../peaks/macs3_results/human_TE_only.bed")
+chimp_np <- read.table("../../peaks/macs3_results/chimp_TE_only.bed")
+oran_np <- read.table("../../peaks/macs3_results/oran_TE_only.bed")
+
+# create genomic range object
+gr_hm_np <- GRanges(
+    seqnames = hm_np$V1,
+    ranges = IRanges(start=hm_np$V2, end=hm_np$V3)
+)
+
+gr_chimp_np <- GRanges(
+    seqnames = chimp_np$V1,
+    ranges=IRanges(start=chimp_np$V2, end=chimp_np$V3)
+)
+
+gr_oran_np <- GRanges(
+    seqnames = oran_np$V1,
+    ranges=IRanges(start=oran_np$V2, end=oran_np$V3)
+)
 ```
 
+read the locus-expression data, do preprocess and intersection:
+
+## human part
+
+```{r}
+# process human TE expression
+# human 9 sample
+path="~/github/kap1_primate/bcells_exp/squire_count/human_count/"
+# GM18558
+h1 <- read.table(paste0(path,"GM18558_count/GM18558_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h2 <- read.table(paste0(path,"GM18558_2/GM18558_Zeb2_2_R1_TEcounts.txt"), header = T)
+h3 <- read.table(paste0(path,"GM18558_3/GM18558_Zeb2_3_R1_TEcounts.txt"), header = T)
+
+# GM18960
+h4 <- read.table(paste0(path,"GM18960_count/GM18960_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h5 <- read.table(paste0(path,"GM18960_2/GM18960_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+h6 <- read.table(paste0(path,"GM18960_3/GM18960_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+
+# GM19240
+h7 <- read.table(paste0(path,"GM19240_count/GM19240_Zeb2_neg_R1_TEcounts.txt"), header = T)
+h8 <- read.table(paste0(path,"GM19240_2/GM19240_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+h9 <- read.table(paste0(path,"GM19240_3/GM19240_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+
+filter_select <- function(df, sample){
+    
+    # 1. preprocess
+    df_process <- df %>%
+        filter(score >= 90) %>%
+        mutate(len = TE_stop - TE_start) %>%
+        dplyr::select(c(4,17,19))
+    colnames(df_process) <- c("ID", sample, "length")
+    df_process <- df_process[!duplicated(df_process$ID), ]
+    
+    # 2. calculate RPK
+    df_process <- df_process %>%
+        mutate(RPK = !!sym(sample) / (length / 1000))  # Calculate Reads Per Kilobase
+    
+    # 3. calculate TPM
+    rpk_sum <- sum(df_process$RPK)  # Sum of all RPKs
+    df_process <- df_process %>%
+        mutate(TPM = RPK / rpk_sum * 1e6)  # Normalize RPK to TPM
+    
+    # Return the processed dataframe with TPM
+    df_process_result <- df_process[,c(1,5)]
+    colnames(df_process_result) <- c("ID", sample)
+    
+    return(df_process_result)
+}
+
+h1_f <- filter_select(h1, "h1")
+h2_f <- filter_select(h2, "h2")
+h3_f <- filter_select(h3, "h3")
+h4_f <- filter_select(h4, "h4")
+h5_f <- filter_select(h5, "h5")
+h6_f <- filter_select(h6, "h6")
+h7_f <- filter_select(h7, "h7")
+h8_f <- filter_select(h8, "h8")
+h9_f <- filter_select(h9, "h9")
+
+# merge
+df_h_TE <- Reduce(function(x, y) merge(x, y, by = "ID", all = FALSE), 
+                    list(h1_f, h2_f, h3_f, h4_f, h5_f, h6_f, h7_f, h8_f, h9_f)) #3006
+rownames(df_h_TE) <- paste0("Hm", 1:nrow(df_h_TE))
+
+# split the information for intersect with bed files
+df_h_TE_split <- df_h_TE %>% 
+    separate(ID, into = c("chr", "start", "end", "rest"), sep="\\|", remove=FALSE)
+df_h_TE_split$start <- as.numeric(df_h_TE_split$start)
+df_h_TE_split$end <- as.numeric(df_h_TE_split$end)
+```
+
+```{r}
+gr_hm_TEexp <- GRanges(
+    seqnames = df_h_TE_split$chr,
+    ranges = IRanges(start=df_h_TE_split$start, end=df_h_TE_split$end)
+)
+
+overlap_hm <- findOverlaps(gr_hm_TEexp, gr_hm_np) # query, subject
+df_h_TE_split_filter <- df_h_TE_split[queryHits(overlap_hm),] #0 overlap in human
+```
+
+## Chimpanzee
+
+```{r}
+# chimp 9 sample
+path="~/github/kap1_primate/bcells_exp/squire_count/chimp_count/"
+# Judith
+c1 <- read.table(paste0(path,"Judith_count/Chimp_Judith_Zeb2_neg_R1_TEcounts.txt"), header = T)
+c2 <- read.table(paste0(path,"Judith_2/Chimp_Judith_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+c3 <- read.table(paste0(path,"Judith_3/Chimp_Judith_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+
+# Leo
+c4 <- read.table(paste0(path,"Leo_count/Chimp_Leo_Zeb2_neg_R1_TEcounts.txt"), header = T)
+c5 <- read.table(paste0(path,"Leo_2/Chimp_Leo_Zeb2_2_R1_TEcounts.txt"), header = T)
+c6 <- read.table(paste0(path,"Leo_3/Chimp_Leo_Zeb2_3_R1_TEcounts.txt"), header = T)
+
+# Maryke
+c7 <- read.table(paste0(path,"Maryke_count/Chimp_Maryke_Zeb2_neg_R1_TEcounts.txt"), header = T)
+c8 <- read.table(paste0(path,"Maryke_2/Chimp_Maryke_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+c9 <- read.table(paste0(path,"Maryke_3/Chimp_Maryke_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+
+filter_select <- function(df, sample){
+    
+    # 1. preprocess
+    df_process <- df %>%
+        filter(score >= 90) %>%
+        mutate(len = TE_stop - TE_start) %>%
+        dplyr::select(c(4,17,19))
+    colnames(df_process) <- c("ID", sample, "length")
+    df_process <- df_process[!duplicated(df_process$ID), ]
+    
+    # 2. calculate RPK
+    df_process <- df_process %>%
+        mutate(RPK = !!sym(sample) / (length / 1000))  # Calculate Reads Per Kilobase
+    
+    # 3. calculate TPM
+    rpk_sum <- sum(df_process$RPK)  # Sum of all RPKs
+    df_process <- df_process %>%
+        mutate(TPM = RPK / rpk_sum * 1e6)  # Normalize RPK to TPM
+    
+    # Return the processed dataframe with TPM
+    df_process_result <- df_process[,c(1,5)]
+    colnames(df_process_result) <- c("ID", sample)
+    
+    return(df_process_result)
+}
+
+c1_f <- filter_select(c1, "c1")
+c2_f <- filter_select(c2, "c2")
+c3_f <- filter_select(c3, "c3")
+c4_f <- filter_select(c4, "c4")
+c5_f <- filter_select(c5, "c5")
+c6_f <- filter_select(c6, "c6")
+c7_f <- filter_select(c7, "c7")
+c8_f <- filter_select(c8, "c8")
+c9_f <- filter_select(c9, "c9")
+
+# merge
+df_c_TE <- Reduce(function(x, y) merge(x, y, by = "ID", all = FALSE), 
+                    list(c1_f, c2_f, c3_f, c4_f, c5_f, c6_f, c7_f, c8_f, c9_f)) #6505
+rownames(df_c_TE) <- paste0("chimp", 1:nrow(df_c_TE))
+
+# split the information for intersect with bed files
+df_c_TE_split <- df_c_TE %>% 
+    separate(ID, into = c("chr", "start", "end", "rest"), sep="\\|", remove=FALSE)
+```
+
+```{r, warning=FALSE}
+gr_chimp_TEexp <- GRanges(
+    seqnames = df_c_TE_split$chr,
+    ranges = IRanges(start=as.numeric(df_c_TE_split$start), 
+                     end=as.numeric(df_c_TE_split$end))
+)
+
+overlap_chimp <- findOverlaps(gr_chimp_TEexp, gr_chimp_np) # query, subject
+df_c_TE_split_filter <- df_c_TE_split[queryHits(overlap_chimp),] #26 overlap in chimpanzee
+```
+
+## Orangutan
+
+```{r}
+# orangutan 9 sample
+path="~/github/kap1_primate/bcells_exp/squire_count/oran_count/"
+# Guchi
+o1 <- read.table(paste0(path,"guchi_count/Orang_Guchi_Zeb2_neg_R1_TEcounts.txt"), header = T)
+o2 <- read.table(paste0(path,"Orang_Guchi_2/Orang_Guchi_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+o3 <- read.table(paste0(path,"Orang_Guchi_3/Orang_Guchi_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+
+# Jaqo
+o4 <- read.table(paste0(path,"jaqo_count/Orang_Jaqo_Zeb2_neg_R1_TEcounts.txt"), header = T)
+o5 <- read.table(paste0(path,"Orang_Jaqo_2/Orang_Jaqo_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+o6 <- read.table(paste0(path,"Orang_Jaqo_3/Orang_Jaqo_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+
+# JingJing
+o7 <- read.table(paste0(path,"jingjing_count/Orang_JingJing_Zeb2_neg_R1_TEcounts.txt"), header = T)
+o8 <- read.table(paste0(path,"Orang_JingJing_2/Orang_JingJing_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
+o9 <- read.table(paste0(path,"Orang_JingJing_3/Orang_JingJing_Zeb2_3_R1.fastq_TEcounts.txt"), header = T)
+
+filter_select <- function(df, sample){
+    
+    # 1. preprocess
+    df_process <- df %>%
+        filter(score >= 90) %>%
+        mutate(len = TE_stop - TE_start) %>%
+        dplyr::select(c(4,17,19))
+    colnames(df_process) <- c("ID", sample, "length")
+    df_process <- df_process[!duplicated(df_process$ID), ]
+    
+    # 2. calculate RPK
+    df_process <- df_process %>%
+        mutate(RPK = !!sym(sample) / (length / 1000))  # Calculate Reads Per Kilobase
+    
+    # 3. calculate TPM
+    rpk_sum <- sum(df_process$RPK)  # Sum of all RPKs
+    df_process <- df_process %>%
+        mutate(TPM = RPK / rpk_sum * 1e6)  # Normalize RPK to TPM
+    
+    # Return the processed dataframe with TPM
+    df_process_result <- df_process[,c(1,5)]
+    colnames(df_process_result) <- c("ID", sample)
+    
+    return(df_process_result)
+}
+
+o1_f <- filter_select(h1, "o1")
+o2_f <- filter_select(h2, "o2")
+o3_f <- filter_select(h3, "o3")
+o4_f <- filter_select(h4, "o4")
+o5_f <- filter_select(h5, "o5")
+o6_f <- filter_select(h6, "o6")
+o7_f <- filter_select(h7, "o7")
+o8_f <- filter_select(h8, "o8")
+o9_f <- filter_select(h9, "o9")
+
+# merge
+df_o_TE <- Reduce(function(x, y) merge(x, y, by = "ID", all = FALSE), 
+                    list(o1_f, o2_f, o3_f, o4_f, o5_f, o6_f, o7_f, o8_f, o9_f)) #3006
+rownames(df_o_TE) <- paste0("Orang", 1:nrow(df_o_TE))
+
+# split column value
+df_o_TE_split <- df_o_TE %>% 
+    separate(ID, into = c("chr", "start", "end", "rest"), sep="\\|", remove=FALSE)
+```
+
+```{r}
+gr_oran_TEexp <- GRanges(
+    seqnames = df_o_TE_split$chr,
+    ranges = IRanges(start=as.numeric(df_o_TE_split$start), 
+                     end=as.numeric(df_o_TE_split$end))
+)
+
+overlap_oran <- findOverlaps(gr_oran_TEexp, gr_oran_np) # query, subject
+df_o_TE_split_filter <- df_o_TE_split[queryHits(overlap_oran),] #3 overlap in chimpanzee
+```
+
+## short summary
+
+In summary, our final output are store in variable: `df_h_TE_split_filter`, `df_c_TE_split_filter` and `df_o_TE_split_filter`.
+
+|               |              |                   |                  |
+|---------------|--------------|-------------------|------------------|
+|               | human sample | chimpanzee sample | orangutan sample |
+| before filter | 3006         | 6505              | 3006             |
+| after filter  | 0            | 26                | 3                |

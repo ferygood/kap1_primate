@@ -5,6 +5,7 @@
 5.  `tetranscripts_analysis.qmd` Do DE analysis in orthologous genes and transposable element across species. Output of DE genes and TEs tables are saved (DE_genes.csv, DE_TEs.csv).
 6.  `tetranscripts_preprocess.qmd` The output of TEtranscript are raw counts. Thus, it is needed to first normalize and merge the results as an input for TEKRABber. The output is saved as `../../bcells_exp/tetranscriptDE.rds` including `hmchimpDE`, `hmoranDE`, `chimporanDE`, and `ortholog_hmchimp`.
 7.  `filter_rmcorr.qmd` Use ChIP-seq detected results to filter if there are overlapped with rmcorr results across species.
-8.  `check_repression.qmd` This script compare ChIP-seq and RNA-seq to see if binding TEs are not expressed in RNA-seq data in three species.
+8.  `check_repression.qmd` This script compare ChIP-seq and RNA-seq to see if binding TEs are not expressed in RNA-seq data in three species. There are 0, 26, and 3 overlapped in human, chimps, and orangutan respectively.
 9.  `findOverlap_hmrmcorr_chipseq.qmd` This file indicate how to generate the 153 overlap pairs of TE:KRAB-ZNF network in human.
 10. `tetranscripts_DE_visual.qmd` Visualize Differentially Expressed (DE) genes and TEs in heatmap. Output saved as jpeg images in "figures" folder.
+11. `extract_motif_chipexo.qmd` There are 159 KRAB-ZNFs used in ChIP-exo, I want to extract their binding sequence.
