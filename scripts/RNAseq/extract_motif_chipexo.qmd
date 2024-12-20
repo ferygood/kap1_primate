@@ -1,14 +1,19 @@
 # Check motifs in 159 KRAB-ZNFs in ChIP-exo data
 
-```{r}
+```{r message=FALSE}
 library(dplyr)
 library(twice)
 library(GenomicRanges)
+library(Biostrings)
+library(BSgenome.Hsapiens.UCSC.hg19)
 
-data("hg19rmsk_gtf")
-chipexo <- read.table("../../chip-exo/GSM2466477_ZNF135_peaks_processed_score_signal_exo.bed")
+hg19 <- BSgenome.Hsapiens.UCSC.hg19
 ```
 
+```{r}
+data("hg19rmsk_gtf")
+chipexo <- read.table("../../chip-exo/GSM2466651_ZNF765_peaks_processed_score_signal_exo.bed")
+```
 
 ```{r}
 gr_TE <- GRanges(
@@ -23,8 +28,27 @@ gr_chipexo <- GRanges(
 
 overlap <- findOverlaps(gr_TE, gr_chipexo)
 TE_range <- hg19rmsk_gtf[queryHits(overlap), ]
+chipexo_range <- chipexo[subjectHits(overlap), ]
 
+chipexo_range <- chipexo_range[!duplicated(chipexo_range),] #1354
+```
+
+Get sequence from binding region
+```{r}
+gr_bind <- GRanges(
+    seqnames = chipexo_range$V1,
+    ranges = IRanges(start=chipexo_range$V2, end=chipexo_range$V3),
+    strand = chipexo_range$V6
+)
+
+chipexo_seq <- getSeq(hg19, gr_bind)
+chipexo_range$sequence <- as.character(chipexo_seq)
 ```
 
 
+```{r}
+sequence <- DNAStringSet(chipexo_range$sequence)
+kmers <- oligonucleotideFrequency(sequence, width=15)
+
+```
 
