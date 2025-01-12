@@ -1,0 +1,149 @@
+This file we are going to extract the expressed genes (focus on KRAB-ZNFs) and TEs in each species from TEtranscript results.
+
+```{r}
+library(tidyverse)
+library(twice)
+```
+
+Read the tpm expression files from three species:
+```{r}
+hm <- readRDS("../../bcells_exp/hm_expression_tpm.rds")
+chimp <- readRDS("../../bcells_exp/chimp_expression_tpm.rds")
+oran <- readRDS("../../bcells_exp/oran_expression_tpm.rds")
+```
+
+```{r}
+hm_gene <- hm[[1]]
+hm_TE <- hm[[2]]
+
+chimp_gene <- chimp[[1]]
+chimp_TE <- chimp[[2]]
+
+oran_gene <- oran[[1]]
+oran_TE <- oran[[2]]
+```
+
+convert gene ID to name and preprocessed the data:
+```{r}
+# human gene
+human_id <- hm_gene$ENSID
+geneName <- gprofiler2::gconvert(
+    query = human_id,
+    organism = "hsapiens",
+    target = "ENSG",
+    mthreshold = Inf,
+    filter_na = TRUE
+)
+
+hm_gene_filter <- hm_gene %>% 
+    inner_join(geneName[,c(2,5)], join_by(ENSID==input))
+
+# column check
+columns_check <- grep("^g[1-9]$", colnames(hm_gene_filter))
+hm_gene_filter_clean <- hm_gene_filter[rowSums(
+    is.na(hm_gene_filter[, columns_check])) <= 3, ]
+hm_gene_filter_clean$exp <- rowMeans(
+    hm_gene_filter_clean[, columns_check], na.rm = TRUE)
+
+hm_gene_filter_clean <- hm_gene_filter_clean[, -columns_check]
+
+# human TE
+hm_TE_filter <- hm_TE[rowSums(is.na(hm_TE[, 2:10])) <= 3, ]
+hm_TE_filter$exp <- rowMeans(
+    hm_TE_filter[, 2:10], na.rm = TRUE)
+hm_TE_filter <- hm_TE_filter[, -(2:10)]
+
+hm_TE_filter$teName <- sub(".*\\|.*\\|.*\\|(.*?):.*", "\\1", hm_TE_filter$ID)
+hm_TE_filter$teFamily <- sub(".*\\|.*\\|.*\\|.*?:(.*?):.*", "\\1", hm_TE_filter$ID)
+hm_TE_filter$teClass <- sub(".*\\|.*\\|.*\\|.*?:.*?:(.*?)\\|.*", "\\1", hm_TE_filter$ID)
+
+# output: hm_gene_filter_clean, hm_TE_filter
+```
+
+```{r}
+# chimp gene
+chimp_id <- chimp_gene$ENSID
+geneName <- gprofiler2::gconvert(
+    query = chimp_id,
+    organism = "ptroglodytes",
+    target = "ENSG",
+    mthreshold = Inf,
+    filter_na = TRUE
+)
+
+chimp_gene_filter <- chimp_gene %>% 
+    inner_join(geneName[,c(2,5)], join_by(ENSID==input))
+
+# column check
+columns_check <- grep("^g[1-9]$", colnames(chimp_gene_filter))
+chimp_gene_filter_clean <- chimp_gene_filter[rowSums(
+    is.na(chimp_gene_filter[, columns_check])) <= 3, ]
+chimp_gene_filter_clean$exp <- rowMeans(
+    chimp_gene_filter_clean[, columns_check], na.rm = TRUE)
+
+chimp_gene_filter_clean <- chimp_gene_filter_clean[, -columns_check]
+
+# chimp TE
+chimp_TE_filter <- chimp_TE[rowSums(is.na(chimp_TE[, 2:10])) <= 3, ]
+chimp_TE_filter$exp <- rowMeans(
+    chimp_TE_filter[, 2:10], na.rm = TRUE)
+chimp_TE_filter <- chimp_TE_filter[, -(2:10)]
+
+chimp_TE_filter$teName <- sub(".*\\|.*\\|.*\\|(.*?):.*", "\\1", chimp_TE_filter$ID)
+chimp_TE_filter$teFamily <- sub(".*\\|.*\\|.*\\|.*?:(.*?):.*", "\\1", chimp_TE_filter$ID)
+chimp_TE_filter$teClass <- sub(".*\\|.*\\|.*\\|.*?:.*?:(.*?)\\|.*", "\\1", chimp_TE_filter$ID)
+
+# output: chimp_gene_filter_clean, chimp_TE_filter
+```
+
+```{r}
+# oran gene
+oran_id <- oran_gene$ENSID
+oran_id <- substr(oran_id, 1, 18)
+geneName <- gprofiler2::gconvert(
+    query = oran_id,
+    organism = "pabelii",
+    target = "ENSG",
+    mthreshold = Inf,
+    filter_na = TRUE
+)
+
+oran_gene_filter <- oran_gene %>% 
+    inner_join(geneName[,c(2,5)], join_by(ENSID==input))
+
+# column check
+columns_check <- grep("^g[1-9]$", colnames(oran_gene_filter))
+oran_gene_filter_clean <- oran_gene_filter[rowSums(
+    is.na(oran_gene_filter[, columns_check])) <= 3, ]
+oran_gene_filter_clean$exp <- rowMeans(
+    oran_gene_filter_clean[, columns_check], na.rm = TRUE)
+
+oran_gene_filter_clean <- oran_gene_filter_clean[, -columns_check]
+
+# oran TE
+oran_TE_filter <- oran_TE[rowSums(is.na(oran_TE[, 2:10])) <= 3, ]
+oran_TE_filter$exp <- rowMeans(
+    oran_TE_filter[, 2:10], na.rm = TRUE)
+oran_TE_filter <- oran_TE_filter[, -(2:10)]
+
+oran_TE_filter$teName <- sub(".*\\|.*\\|.*\\|(.*?):.*", "\\1", oran_TE_filter$ID)
+oran_TE_filter$teFamily <- sub(".*\\|.*\\|.*\\|.*?:(.*?):.*", "\\1", oran_TE_filter$ID)
+oran_TE_filter$teClass <- sub(".*\\|.*\\|.*\\|.*?:.*?:(.*?)\\|.*", "\\1", oran_TE_filter$ID)
+
+# output: oran_gene_filter_clean, oran_TE_filter
+```
+
+Save the expression of gene and TE
+```{r}
+expression_merge <- list(
+    "hm_gene" = hm_gene_filter_clean,
+    "hm_TE_filter" = hm_TE_filter,
+    "chimp_gene" = chimp_gene_filter_clean,
+    "chimp_TE_filter" = chimp_TE_filter,
+    "oran_gene" = oran_gene_filter_clean,
+    "oran_TE_filter" = oran_TE_filter
+)
+
+saveRDS(expression_merge, file="../../bcells_exp/expression_merge.rds")
+```
+

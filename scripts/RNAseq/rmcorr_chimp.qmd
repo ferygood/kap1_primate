@@ -23,7 +23,7 @@ Read expression file, read TE files:
 
 ```{r}
 # human 9 sample
-path="~/github/kap1_primate/bcells_exp/squire_count/chimp_count/"
+path="~/Desktop/phd/kap1_primate/bcells_exp/squire_count/chimp_count/"
 # Judith
 h1 <- read.table(paste0(path,"Judith_count/Chimp_Judith_Zeb2_neg_R1_TEcounts.txt"), header = T)
 h2 <- read.table(paste0(path,"Judith_2/Chimp_Judith_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
@@ -77,13 +77,13 @@ h9_f <- filter_select(h9, "c9")
 
 # merge
 df_h_TE <- Reduce(function(x, y) merge(x, y, by = "ID", all = FALSE), 
-                    list(h1_f, h2_f, h3_f, h4_f, h5_f, h6_f, h7_f, h8_f, h9_f)) #3006
+                    list(h1_f, h2_f, h3_f, h4_f, h5_f, h6_f, h7_f, h8_f, h9_f)) #6505
 rownames(df_h_TE) <- paste0("chimp", 1:nrow(df_h_TE))
 ```
 
 For chimpanzee KRAB-ZNFs,
 ```{r}
-g_path <- "~/github/kap1_primate/bcells_exp/TEtranscript/chimp_counts/"
+g_path <- "~/Desktop/phd/kap1_primate/bcells_exp/TEtranscript/chimp_counts/"
 #Judith
 g1 <- read.table(paste0(g_path,"Chimp_Judith_Zeb2_neg.cntTable"), header=TRUE)
 g2 <- read.table(paste0(g_path,"Chimp_Judith_Zeb2_2.cntTable"), header=TRUE)
@@ -108,7 +108,7 @@ filtered_g <- merged_g %>% filter(grepl("^ENSPTRG", gene.TE))
 colnames(filtered_g)[1] <- "ENSID"
 
 # create gene length file
-txdb <- makeTxDbFromGFF("~/Downloads/panTro4.ensGene.gtf")
+txdb <- makeTxDbFromGFF("~/Downloads/panTro4.ensGene.gtf") # from ucsc goldenPath/panTro4/bigZips/genes
 gene_length <- genes(txdb) %>%
     as.data.frame() %>%
     mutate(length = width) %>%
@@ -208,5 +208,15 @@ chimp_rmcorr_addTE_sig <- chimp_rmcorr_addTE %>%
     filter(pvalue<0.01) #39136, lowest padj 0.2
 
 write.csv(chimp_rmcorr_addTE_sig, file="../../tables/chimp_rmcorr_result.csv")
+```
+
+I additionally save it as rds file:
+```{r}
+chimp_expression_profile <- list(
+    gene_tpm <- filtered_g,
+    te_tpm <- df_h_TE
+)
+
+saveRDS(chimp_expression_profile, file="../../bcells_exp/chimp_expression_tpm.rds")
 ```
 

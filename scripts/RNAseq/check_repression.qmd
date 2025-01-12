@@ -18,16 +18,19 @@ chimp_np <- read.table("../../peaks/macs3_results/chimp_TE_only.bed")
 oran_np <- read.table("../../peaks/macs3_results/oran_TE_only.bed")
 
 # create genomic range object
+# gr_hm_np: human 2077 narrow peaks
 gr_hm_np <- GRanges(
     seqnames = hm_np$V1,
     ranges = IRanges(start=hm_np$V2, end=hm_np$V3)
 )
 
+# gr_chimp_np: 5754 narrow peaks
 gr_chimp_np <- GRanges(
     seqnames = chimp_np$V1,
     ranges=IRanges(start=chimp_np$V2, end=chimp_np$V3)
 )
 
+# gr_oran_np: 10098 narrow peaks
 gr_oran_np <- GRanges(
     seqnames = oran_np$V1,
     ranges=IRanges(start=oran_np$V2, end=oran_np$V3)
@@ -41,7 +44,7 @@ read the locus-expression data, do preprocess and intersection:
 ```{r}
 # process human TE expression
 # human 9 sample
-path="~/github/kap1_primate/bcells_exp/squire_count/human_count/"
+path="~/Desktop/phd/kap1_primate/bcells_exp/squire_count/human_count/"
 # GM18558
 h1 <- read.table(paste0(path,"GM18558_count/GM18558_Zeb2_neg_R1_TEcounts.txt"), header = T)
 h2 <- read.table(paste0(path,"GM18558_2/GM18558_Zeb2_2_R1_TEcounts.txt"), header = T)
@@ -119,7 +122,7 @@ df_h_TE_split_filter <- df_h_TE_split[queryHits(overlap_hm),] #0 overlap in huma
 
 ```{r}
 # chimp 9 sample
-path="~/github/kap1_primate/bcells_exp/squire_count/chimp_count/"
+path="~/Desktop/phd/kap1_primate/bcells_exp/squire_count/chimp_count/"
 # Judith
 c1 <- read.table(paste0(path,"Judith_count/Chimp_Judith_Zeb2_neg_R1_TEcounts.txt"), header = T)
 c2 <- read.table(paste0(path,"Judith_2/Chimp_Judith_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
@@ -196,7 +199,7 @@ df_c_TE_split_filter <- df_c_TE_split[queryHits(overlap_chimp),] #26 overlap in 
 
 ```{r}
 # orangutan 9 sample
-path="~/github/kap1_primate/bcells_exp/squire_count/oran_count/"
+path="~/Desktop/phd/kap1_primate/bcells_exp/squire_count/oran_count/"
 # Guchi
 o1 <- read.table(paste0(path,"guchi_count/Orang_Guchi_Zeb2_neg_R1_TEcounts.txt"), header = T)
 o2 <- read.table(paste0(path,"Orang_Guchi_2/Orang_Guchi_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
@@ -238,15 +241,15 @@ filter_select <- function(df, sample){
     return(df_process_result)
 }
 
-o1_f <- filter_select(h1, "o1")
-o2_f <- filter_select(h2, "o2")
-o3_f <- filter_select(h3, "o3")
-o4_f <- filter_select(h4, "o4")
-o5_f <- filter_select(h5, "o5")
-o6_f <- filter_select(h6, "o6")
-o7_f <- filter_select(h7, "o7")
-o8_f <- filter_select(h8, "o8")
-o9_f <- filter_select(h9, "o9")
+o1_f <- filter_select(o1, "o1")
+o2_f <- filter_select(o2, "o2")
+o3_f <- filter_select(o3, "o3")
+o4_f <- filter_select(o4, "o4")
+o5_f <- filter_select(o5, "o5")
+o6_f <- filter_select(o6, "o6")
+o7_f <- filter_select(o7, "o7")
+o8_f <- filter_select(o8, "o8")
+o9_f <- filter_select(o9, "o9")
 
 # merge
 df_o_TE <- Reduce(function(x, y) merge(x, y, by = "ID", all = FALSE), 
@@ -266,7 +269,7 @@ gr_oran_TEexp <- GRanges(
 )
 
 overlap_oran <- findOverlaps(gr_oran_TEexp, gr_oran_np) # query, subject
-df_o_TE_split_filter <- df_o_TE_split[queryHits(overlap_oran),] #3 overlap in chimpanzee
+df_o_TE_split_filter <- df_o_TE_split[queryHits(overlap_oran),] #5 overlap in chimpanzee
 ```
 
 ## short summary
@@ -276,5 +279,19 @@ In summary, our final output are store in variable: `df_h_TE_split_filter`, `df_
 |               |              |                   |                  |
 |---------------|--------------|-------------------|------------------|
 |               | human sample | chimpanzee sample | orangutan sample |
-| before filter | 3006         | 6505              | 3006             |
-| after filter  | 0            | 26                | 3                |
+| before filter | 3006         | 6505              | 6117             |
+| after filter  | 0            | 26                | 5                |
+
+```{r}
+write.table(df_c_TE_split_filter, 
+            file="../../tables/chipseq_rnaseq_overlap_chimp.csv",
+            row.names = F,
+            sep=",")
+
+write.table(df_o_TE_split_filter,
+            file="../../tables/chipseq_rnaseq_overlap_oran.csv",
+            row.names=F,
+            sep=",")
+
+```
+

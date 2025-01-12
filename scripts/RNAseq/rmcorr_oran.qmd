@@ -23,7 +23,7 @@ Read expression file, read TE files:
 
 ```{r}
 # orangutan 9 sample
-path="~/github/kap1_primate/bcells_exp/squire_count/oran_count/"
+path="~/Desktop/phd/kap1_primate/bcells_exp/squire_count/oran_count/"
 # Guchi
 h1 <- read.table(paste0(path,"guchi_count/Orang_Guchi_Zeb2_neg_R1_TEcounts.txt"), header = T)
 h2 <- read.table(paste0(path,"Orang_Guchi_2/Orang_Guchi_Zeb2_2_R1.fastq_TEcounts.txt"), header = T)
@@ -77,13 +77,13 @@ h9_f <- filter_select(h9, "o9")
 
 # merge
 df_h_TE <- Reduce(function(x, y) merge(x, y, by = "ID", all = FALSE), 
-                    list(h1_f, h2_f, h3_f, h4_f, h5_f, h6_f, h7_f, h8_f, h9_f)) #3006
+                    list(h1_f, h2_f, h3_f, h4_f, h5_f, h6_f, h7_f, h8_f, h9_f)) #6117
 rownames(df_h_TE) <- paste0("Orang", 1:nrow(df_h_TE))
 ```
 
 For Oranganzee KRAB-ZNFs,
 ```{r}
-g_path <- "~/github/kap1_primate/bcells_exp/TEtranscript/oran_counts/"
+g_path <- "~/Desktop/phd/kap1_primate/bcells_exp/TEtranscript/oran_counts/"
 #Guchi
 g1 <- read.table(paste0(g_path,"Orang_Guchi_Zeb2_neg.cntTable"), header=TRUE)
 g2 <- read.table(paste0(g_path,"Orang_Guchi_Zeb2_2.cntTable"), header=TRUE)
@@ -209,5 +209,15 @@ Orang_rmcorr_addTE_sig <- Orang_rmcorr_addTE %>%
 
 write.csv(
     Orang_rmcorr_addTE_sig[,c(1,2,3,6)], file="../../tables/Orang_rmcorr_result.csv")
+```
+
+I additionally save it as rds file for the expression profile:
+```{r}
+oran_expression_profile <- list(
+    gene_tpm <- filtered_g,
+    te_tpm <- df_h_TE
+)
+
+saveRDS(oran_expression_profile, file="../../bcells_exp/oran_expression_tpm.rds")
 ```
 

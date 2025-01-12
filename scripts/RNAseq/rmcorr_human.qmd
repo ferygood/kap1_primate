@@ -20,7 +20,7 @@ Read expression file, read TE files and combine, convert the raw counts to TPM:
 
 ```{r}
 # human 9 sample
-path="~/github/kap1_primate/bcells_exp/squire_count/human_count/"
+path="~/Desktop/phd/kap1_primate/bcells_exp/squire_count/human_count/"
 # GM18558
 h1 <- read.table(paste0(path,"GM18558_count/GM18558_Zeb2_neg_R1_TEcounts.txt"), header = T)
 h2 <- read.table(paste0(path,"GM18558_2/GM18558_Zeb2_2_R1_TEcounts.txt"), header = T)
@@ -80,7 +80,7 @@ rownames(df_h_TE) <- paste0("Hm", 1:nrow(df_h_TE))
 
 For human KRAB-ZNFs, we use TEtranscript count result
 ```{r}
-g_path <- "~/github/kap1_primate/bcells_exp/TEtranscript/hm_counts/"
+g_path <- "~/Desktop/phd/kap1_primate/bcells_exp/TEtranscript/hm_counts/"
 #GM18558
 g1 <- read.table(paste0(g_path,"GM18558_Zeb2_neg.cntTable"), header=TRUE)
 g2 <- read.table(paste0(g_path,"GM18558_Zeb2_2.cntTable"), header=TRUE)
@@ -173,6 +173,7 @@ hm_rmcorr <- corrOrthologTE_rmcorr(
 )
 Sys.time() #20~25min
 ```
+
 ```{r}
 hm_rmcorr_addTE <- hm_rmcorr %>%
     left_join(df_h_TE_filter[,c(1,11)], join_by(teName==ID))
@@ -181,5 +182,15 @@ hm_rmcorr_addTE_sig <- hm_rmcorr_addTE %>%
     filter(pvalue<0.01) #67155
     
 write.csv(hm_rmcorr_addTE_sig, file="../../tables/hm_rmcorr_result.csv")
+```
+
+I additionally save the expression as R object:
+```{r}
+hm_expression_profile <- list(
+    gene_tpm <- filtered_g,
+    te_tpm <- df_h_TE
+)
+
+saveRDS(hm_expression_profile, file="../../bcells_exp/hm_expression_tpm.rds")
 ```
 
