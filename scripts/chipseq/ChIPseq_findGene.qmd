@@ -1,0 +1,172 @@
+
+
+```{r}
+library(GenomicRanges)
+library(rtracklayer)
+library(dplyr)
+library(stringr)
+```
+
+
+```{r}
+hm_peak <- read.table("~/Desktop/phd/kap1_primate/peaks/human_annotated_peaks.txt", 
+                      sep='\t', header=T)
+chimp_peak <- read.table("~/Desktop/phd/kap1_primate/peaks/macs3_results/chimp.np", 
+                         sep='\t')
+oran_peak <- read.table("~/Desktop/phd/kap1_primate/peaks/macs3_results/oran.np", 
+                        sep='\t')
+```
+
+
+```{r}
+hg19gtf <- read.table("~/Downloads/hg19.ensGene.gtf", sep='\t')
+panTro4gtf <- read.table("~/Downloads/panTro4.ensGene.gtf", sep='\t')
+ponAbe2gtf <- read.table("~/Downloads/ponAbe2.ensGene.gtf", sep='\t')
+```
+
+```{r}
+# analyze human data
+peak_gr_hm <- GRanges(
+    seqnames = hm_peak$chr,
+    ranges = IRanges(start=hm_peak$start, end=hm_peak$end)
+)
+
+gene_gr_hm <- GRanges(
+    seqnames = hg19gtf$V1,
+    ranges = IRanges(start=hg19gtf$V4 - 100, end=hg19gtf$V4)
+)
+
+overlap_hm <- findOverlaps(peak_gr_hm, gene_gr_hm)
+
+hg19gtf_filter <- hg19gtf[subjectHits(overlap_hm),] #313 unique data
+```
+
+```{r}
+# analyze chimp data
+peak_gr_chimp <- GRanges(
+    seqnames = chimp_peak$V1,
+    ranges = IRanges(start=chimp_peak$V2, end=chimp_peak$V3)
+)
+
+gene_gr_chimp <- GRanges(
+    seqnames = panTro4gtf$V1,
+    ranges = IRanges(start=panTro4gtf$V4 - 100, end=panTro4gtf$V4)
+)
+
+overlap_chimp <- findOverlaps(peak_gr_chimp, gene_gr_chimp)
+
+panTro4gtf_filter <- panTro4gtf[subjectHits(overlap_chimp),] #613 unique data
+```
+
+```{r}
+# analyze chimp data
+peak_gr_oran <- GRanges(
+    seqnames = oran_peak$V1,
+    ranges = IRanges(start=oran_peak$V2, end=oran_peak$V3)
+)
+
+gene_gr_oran <- GRanges(
+    seqnames = ponAbe2gtf$V1,
+    ranges = IRanges(start=ponAbe2gtf$V4 - 100, end=ponAbe2gtf$V4)
+)
+
+overlap_oran <- findOverlaps(peak_gr_oran, gene_gr_oran)
+
+ponAbe2gtf_filter <- ponAbe2gtf[subjectHits(overlap_oran),] #668 unique data
+```
+
+Them, we extract the gene list from each species.
+```{r}
+# prepare the id and gene name covert reference
+# in human
+hg19gtf_filter <- hg19gtf_filter %>%
+  mutate(
+    geneID = str_extract(V9, "gene_id ([^;]+)") %>% str_remove("gene_id "))
+
+hm_gene_id <- unique(hg19gtf_filter$geneID) #80
+
+hm_gene <- gprofiler2::gconvert(
+    query = hm_gene_id,
+    organism = "hsapiens",
+    target = "ENSG",
+    mthreshold = Inf,
+    filter_na = TRUE
+)
+```
+
+```{r}
+# in chimpanzee
+panTro4gtf_filter <- panTro4gtf_filter %>%
+  mutate(
+    geneID = str_extract(V9, "gene_id ([^;]+)") %>% str_remove("gene_id "))
+
+chimp_gene_id <- unique(panTro4gtf_filter$geneID) #410
+chimp_gene_id <- substr(chimp_gene_id, 1, 18)
+
+chimp_gene <- gprofiler2::gconvert(
+    query = chimp_gene_id,
+    organism = "ptroglodytes",
+    target = "ENSG",
+    mthreshold = Inf,
+    filter_na = TRUE
+)
+```
+
+```{r}
+# in orangutan
+ponAbe2gtf_filter <- ponAbe2gtf_filter %>%
+  mutate(
+    geneID = str_extract(V9, "gene_id ([^;]+)") %>% str_remove("gene_id "))
+
+oran_gene_id <- unique(ponAbe2gtf_filter$geneID) #410
+oran_gene_id <- substr(oran_gene_id, 1, 18)
+
+oran_gene <- gprofiler2::gconvert(
+    query = oran_gene_id,
+    organism = "pabelii",
+    target = "ENSG",
+    mthreshold = Inf,
+    filter_na = TRUE
+)
+```
+
+```{r}
+library(ggVennDiagram)
+
+species_set <- list(
+    human <- hm_gene$name,
+    chimp <- chimp_gene$name,
+    orangutan <- oran_gene$name
+)
+
+gV <- ggVennDiagram(species_set, 
+                    category.names = c("Human", "Chimp", "Orangutan"))
+
+# intersect
+intersect(hm_gene$name, chimp_gene$name) #"ITGB3BP" "SLC30A7" "PTEN"    "SCFD1"   "ECT2"    "DMXL1"   "HMMR"    "IL6"     "VPS50"
+
+intersect(chimp_gene$name, oran_gene$name) #79
+
+intersect(hm_gene$name, oran_gene$name) #"ABCD3"  "PTPN13" "DMXL1"  "UTRN"  
+
+# overlap between three species is DMXL1
+```
+```{r}
+hm_gene_select <- hm_gene[,c(4,5,6)]
+colnames(hm_gene_select) <- c("ENSG", "geneName", "description")
+
+chimp_gene_select <- chimp_gene[,c(4,5,6)]
+colnames(chimp_gene_select) <- c("ENSG", "geneName", "description")
+
+oran_gene_select <- oran_gene[,c(4,5,6)]
+colnames(oran_gene_select) <- c("ENSG", "geneName", "description")
+```
+
+```{r}
+write.table(hm_gene_select, file="../../tables/peak_gene_human.csv", sep=",", row.names = F)
+write.table(chimp_gene_select, file="../../tables/peak_gene_chimp.csv", sep=",", row.names = F)
+write.table(oran_gene_select, file="../../tables/peak_gene_oran.csv", sep=",", row.names = F)
+```
+
+
+
