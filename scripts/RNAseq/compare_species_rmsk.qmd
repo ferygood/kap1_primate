@@ -1,0 +1,65 @@
+# Compare RepeatMasker annotations between species
+
+In this script, we would like to check that the number found is not favor any species because of differences in their annotations.
+
+Therefore, we download their TE annotation from the UCSC genome browser table via RepeatMasker track.
+
+```{r}
+library(dplyr)
+library(twice)
+
+data("hg19rmsk_info")
+te_annot <- hg19rmsk_info
+te_annot <- te_annot %>%
+    mutate(class_id = if_else(
+        gene_id %in% paste0("SVA_", c("A", "B", "C", "D", "E", "F")), 
+        "SINE", 
+        class_id  # keep original value
+    ))
+
+```
+
+Read repeatmasker annotation into variable
+```{r}
+hg19 <- read.table("~/Downloads/hg19_rmsk.gtf")
+panTro4 <- read.table("~/Downloads/panTro4_rmsk.gtf")
+ponAbe2 <- read.table("~/Downloads/ponAbe2_rmsk.gtf")
+```
+
+Select needed columns
+```{r}
+hg19_select <- hg19 %>% select(c(1,4,5,10))
+panTro4_select <- panTro4 %>% select(c(1,4,5,10))
+ponAbe2_select <- ponAbe2 %>% select(c(1,4,5,10))
+```
+
+Add the information of TE class
+```{r}
+hg19_add <- hg19_select %>%
+    left_join(te_annot[,c(1,3)], join_by(V10==gene_id)) %>%
+    rename(chr = V1) %>%
+    group_by(chr, class_id) %>%
+    summarise(count = n(), .groups = "drop") %>%
+    filter(chr %in% paste0("chr", c(seq(1,22), "X", "Y"))) %>%
+    filter(class_id %in% c("DNA", "LINE", "SINE", "LTR"))
+
+panTro4_add <- panTro4_select %>%
+    left_join(te_annot[,c(1,3)], join_by(V10==gene_id)) %>%
+    rename(chr = V1) %>%
+    group_by(chr, class_id) %>%
+    summarise(count = n(), .groups = "drop") %>%
+    filter(chr %in% paste0("chr", c(seq(1,22), "X", "Y", "2A", "2B"))) %>%
+    filter(class_id %in% c("DNA", "LINE", "SINE", "LTR"))
+
+ponAbe2_add <- ponAbe2_select %>%
+    left_join(te_annot[,c(1,3)], join_by(V10==gene_id)) %>%
+    rename(chr = V1) %>%
+    group_by(chr, class_id) %>%
+    summarise(count = n(), .groups = "drop") %>%
+    filter(chr %in% paste0("chr", c(seq(1,22), "X", "Y", "2a", "2b"))) %>%
+    filter(class_id %in% c("DNA", "LINE", "SINE", "LTR"))
+```
+
+Get the information of the length of chromosome
+
+
