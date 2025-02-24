@@ -20,6 +20,7 @@ te_annot <- te_annot %>%
 ```
 
 Read repeatmasker annotation into variable
+
 ```{r}
 hg19 <- read.table("~/Downloads/hg19_rmsk.gtf")
 panTro4 <- read.table("~/Downloads/panTro4_rmsk.gtf")
@@ -27,6 +28,7 @@ ponAbe2 <- read.table("~/Downloads/ponAbe2_rmsk.gtf")
 ```
 
 Select needed columns
+
 ```{r}
 hg19_select <- hg19 %>% select(c(1,4,5,10))
 panTro4_select <- panTro4 %>% select(c(1,4,5,10))
@@ -34,6 +36,7 @@ ponAbe2_select <- ponAbe2 %>% select(c(1,4,5,10))
 ```
 
 Add the information of TE class
+
 ```{r}
 hg19_add <- hg19_select %>%
     left_join(te_annot[,c(1,3)], join_by(V10==gene_id)) %>%
@@ -62,4 +65,90 @@ ponAbe2_add <- ponAbe2_select %>%
 
 Get the information of the length of chromosome
 
+```{r}
+hg19_chr <- read.table("~/Downloads/hg19.chrom.sizes")
+panTro4_chr <- read.table("~/Downloads/panTro4.chrom.sizes")
+ponAbe2_chr <- read.table("~/Downloads/ponAbe2.chrom.sizes")
 
+```
+
+combine chromosome size
+
+```{r}
+hg19_merge <- hg19_add %>% left_join(hg19_chr, join_by(chr==V1))
+panTro4_merge <- panTro4_add %>% left_join(panTro4_chr, join_by(chr==V1))
+ponAbe2_merge <- ponAbe2_add %>% left_join(ponAbe2_chr, join_by(chr==V1))
+```
+
+First, we save the result as csv and also import them to the supplementary files
+
+```{r}
+colnames(hg19_merge)[4] <- "chr_length"
+colnames(panTro4_merge)[4] <- "chr_length"
+colnames(ponAbe2_merge)[4] <- "chr_length"
+
+seq_order <- paste0("chr", c("1", "2", "2a", "2b", "2A", "2B", seq(3,22), "X", "Y"))
+
+hg19_merge$chr <- factor(hg19_merge$chr, levels = seq_order)
+panTro4_merge$chr <- factor(panTro4_merge$chr, levels = seq_order)
+ponAbe2_merge$chr <- factor(ponAbe2_merge$chr, levels = seq_order)
+
+hg19_merge <- hg19_merge %>% arrange(chr)
+panTro4_merge <- panTro4_merge %>% arrange(chr)
+ponAbe2_merge <- ponAbe2_merge %>% arrange(chr)
+
+write.csv(hg19_merge, file='../../tables/hg19rmsk_chrLen.csv', row.names = F)
+write.csv(panTro4_merge, file='../../tables/panTro4rmsk_chrLen.csv', row.names = F)
+write.csv(ponAbe2_merge, file='../../tables/ponAbe2rmsk_chrLen.csv', row.names = F)
+```
+
+The next step is to calculate if there is a difference between them
+
+```{r}
+human_df <- hg19_merge %>% mutate(species="human")
+chimp_df <- panTro4_merge %>% mutate(species="chimp")
+oran_df <- ponAbe2_merge %>% mutate(species="orangutan")
+
+combine_df <- bind_rows(human_df, chimp_df, oran_df) %>%
+    mutate(species = factor(species, levels=c("human", "chimp", "orangutan")))
+
+combine_df <- combine_df %>%
+    mutate(norm_count = count / chr_length * 1e6) # count per million base pair
+```
+
+```{r}
+g <- ggplot(combine_df, aes(x=class_id, y=norm_count, fill=species)) +
+geom_bar(stat="summary", fun="mean", position="dodge") +
+facet_wrap(\~chr, scales="free") +
+theme_minimal() +
+scale_fill_manual(values = c("#e7b7b1", "#c8eaee", "#b2beb5")) +
+labs(y="Normalized TE count (per Mb)", x="TE class", title="")
+ggsave("../../figures/check_TEcount_speciesChr.png", g, width=12, height=8, dpi=400, bg = "white")
+```
+
+![](/figures/check_TEcount_speciesChr.png)library(ggplot2)
+
+
+Do chi-square test for each chromosome
+
+```{r}
+unique_chrom <- unique(combine_df$chr)
+chi_sq_res <- data.frame(chromosome = character(), 
+                         p_value=numeric(), stringsAsFactors = FALSE)
+for (chrom in unique_chrom) {
+    tmp <- combine_df %>% filter(chr == chrom)
+    
+    contigency <- xtabs(norm_count ~ class_id + species, data = tmp)
+    
+    test <- chisq.test(contigency)
+    
+    chi_sq_res <- rbind(chi_sq_res, data.frame(
+        chromosome = chrom,
+        p_value = test$p.value
+    ))
+}
+
+# result save as the variable chi_sq_res
+write.csv(chi_sq_res, file="../../tables/chisq_TEclass_chr_comparespecies.csv", row.names=F)
+
+```
