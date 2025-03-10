@@ -1,0 +1,153 @@
+# GO genes are differentially expressed across species?
+
+```{r}
+library(dplyr)
+library(biomaRt)
+```
+
+Load files,
+```{r}
+chimp_cc <- read.table("../../tables/chimp_peak_cc.txt", sep='\t', header=TRUE)
+oran_cc <- read.table("../../tables/oran_peak_cc.txt", sep='\t', header=TRUE)
+oran_bp <- read.table("../../tables/oran_peak_bp.txt", sep='\t', header=TRUE)
+```
+
+We want to filter the gene ID from chimp and oran including with neuron development
+```{r}
+chimp_cc_filter <- chimp_cc %>% 
+    filter(Description %in% c("axon", "dendrite", "dendritic tree"))
+
+oran_cc_filter <- oran_cc %>%
+    filter(!Description %in% c("exocytic vesicle membrane"))
+
+oran_bp_filter <- oran_bp %>%
+    filter(Description %in% c("axon guidance", "neuron projection guidance",
+                              "cell morphogenesis involved in neuron differentiation",
+                              "axon development", "axonogenesis", 
+                              "neuron projection morphogenesis", 
+                              "regulation of neuron projection development",
+                              "synapse assembly", 
+                              "central nervous system neuron differentiation"))
+    
+```
+
+Load gene expression data:
+```{r}
+exp_data <- readRDS("../../bcells_exp/tetranscriptDE.rds") # load expression data
+df_hmchimp <- exp_data$hmchimpDE$gene_res %>% data.frame() %>% 
+    filter(padj<0.05)
+df_hmoran <- exp_data$hmoranDE$gene_res %>% data.frame() %>%
+    filter(padj<0.05)
+```
+
+Load ortholog gene comparison table:
+```{r}
+human <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+chimp <- useMart("ensembl", dataset = "ptroglodytes_gene_ensembl")
+oran <- useMart("ensembl", dataset = "pabelii_gene_ensembl")
+```
+
+```{r}
+ortho_hmchimp <- getBM(
+    attributes = c("ensembl_gene_id", "external_gene_name", 
+                   "ptroglodytes_homolog_ensembl_gene", 
+                   "ptroglodytes_homolog_associated_gene_name"),
+    mart = human
+)
+
+ortho_hmoran <- getBM(
+    attributes = c("ensembl_gene_id", "external_gene_name", 
+                   "pabelii_homolog_ensembl_gene", 
+                   "pabelii_homolog_associated_gene_name"),
+    mart = human
+)
+```
+
+write a function to merge DE data and GO data
+
+```{r}
+merge_de <- function(group_name, go_result, de_result, ortholog) {
+    library(dplyr)
+    library(stringr)
+    
+    # 1. create empty dataframe
+    df <- data.frame(
+        group = character(),
+        GO = character(),
+        Description = character(),
+        UP = character(),
+        DOWN = character(),
+        stringsAsFactors = FALSE
+    )
+    
+    # 2. check every genes
+    for (i in 1:nrow(go_result)) {
+        group <- group_name
+        GO <- go_result$ID[i]
+        Description <- go_result$Description[i]
+        
+        up <- c()
+        down <- c()
+        
+        # get gene name
+        gene_list <- str_split(go_result$geneID[i], "/")[[1]]
+        
+        for (gene in gene_list) {
+            human_gene <- ortholog %>%
+                filter(ortholog[[3]] == gene) %>%  
+                dplyr::select(external_gene_name, ensembl_gene_id) 
+            
+            if (nrow(human_gene) > 0) {
+                for (j in 1:nrow(human_gene)) {
+                    gene_name <- human_gene$external_gene_name[j]
+                    gene_id <- human_gene$ensembl_gene_id[j]
+                    
+                    check_value <- de_result %>%
+                        filter(rownames(.) == gene_id) %>%
+                        pull(log2FoldChange)
+                    
+                    if (length(check_value) > 0 && check_value > 0) {
+                        up <- c(up, gene_name)
+                    } else {
+                        down <- c(down, gene_name)
+                    }
+                }
+            }
+        }
+        
+        # convert to string
+        up_str <- paste(up, collapse = ", ")
+        down_str <- paste(down, collapse = ", ")
+        
+        # 3. add new row
+        df <- rbind(df, data.frame(
+            group = group,
+            GO = GO,
+            Description = Description,
+            UP = up_str,
+            DOWN = down_str,
+            stringsAsFactors = FALSE
+        ))
+    }
+    
+    return(df)
+}
+
+```
+
+```{r}
+chimp_cc_de <- merge_de(group="human_vs_chimp_cc", go_result=chimp_cc_filter,
+                          de_result=df_hmchimp, ortholog=ortho_hmchimp)
+oran_cc_de <- merge_de(group="human_vs_oran_cc", go_result=oran_cc_filter,
+                       de_result=df_hmoran, ortholog=ortho_hmoran)
+oran_bp_de <- merge_de(group="human_vs_oran_bp", go_result=oran_bp_filter,
+                       de_result=df_hmoran, ortholog=ortho_hmoran)
+
+```
+
+Then we combine all output dataframe:
+```{r}
+merge_df <- rbind(chimp_cc_de, oran_cc_de, oran_bp_de)
+write.csv(merge_df, file = "../../tables/GO_withDEinfo.csv", row.names = FALSE)
+```
+
