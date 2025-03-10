@@ -151,3 +151,87 @@ merge_df <- rbind(chimp_cc_de, oran_cc_de, oran_bp_de)
 write.csv(merge_df, file = "../../tables/GO_withDEinfo.csv", row.names = FALSE)
 ```
 
+## Visualization of the result
+```{r}
+library(ggplot2)
+library(ggpubr)
+library(tidyr)
+```
+
+Data wrangling
+```{r}
+plot_df <- merge_df %>%
+    mutate(
+        species = ifelse(grepl("chimp", group), "chimp", "oran"),
+        GO_Description = paste(GO, Description, sep = " - "),
+        up_count = str_count(UP, ",") + 1,
+        down_count = str_count(DOWN, ",") + 1
+    ) %>%
+    dplyr::select(species, GO_Description, up_count, down_count) %>%
+    tidyr::pivot_longer(cols = c(up_count, down_count), 
+                        names_to = "Regulation", 
+                        values_to = "Gene_Count")
+
+plot_df$Regulation <- factor(plot_df$Regulation, levels=c("up_count", "down_count"))
+```
+
+Visualize result using ggplot2
+```{r}
+up_number <- plot_df %>% filter(Regulation=="up_count") %>% dplyr::select(Gene_Count)
+down_number <- plot_df %>% filter(Regulation=="down_count") %>% dplyr::select(Gene_Count)
+t_test <- t.test(up_number$Gene_Count, down_number$Gene_Count) # 1.818e-08
+
+p <- ggplot(plot_df, aes(x = Gene_Count, y = GO_Description, fill = Regulation)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(x = "Gene Count", y = "", fill = "compare w/ human") +
+    theme_minimal() +
+    scale_fill_manual(values = c("up_count" = "#f74f2b", "down_count" = "#3a62f9"),
+                      labels = c("Down", "Up"))
+
+ggsave(filename = "../../figures/GO_DE_barplot.jpg", dpi=200, height=8, width=10)
+```
+
+Calculate the frequency of gene
+```{r}
+gene_freq <- merge_df %>%
+    mutate(species = ifelse(grepl("chimp", group), "chimp", "orangutan")) %>%
+    dplyr::select(species, UP, DOWN) %>%
+    pivot_longer(cols = c(UP, DOWN), names_to = "Regulation", values_to = "Genes") %>%
+    separate_rows(Genes, sep = ", ") %>%
+    group_by(species, Regulation, Genes) %>%
+    summarise(Count = n(), .groups = "drop") %>%
+    arrange(desc(Count))
+```
+
+```{r}
+chimp_up <- gene_freq %>% 
+    filter(species=="chimp" & Regulation=="UP") %>%
+    dplyr::select(Genes) %>% c()
+
+chimp_down <- gene_freq %>%
+    filter(species=="chimp" & Regulation=="DOWN") %>%
+    dplyr::select(Genes) %>% c()
+
+oran_up <- gene_freq %>% 
+    filter(species=="orangutan" & Regulation=="UP") %>%
+    dplyr::select(Genes) %>% c()
+
+oran_down <- gene_freq %>% 
+    filter(species=="orangutan" & Regulation=="DOWN") %>%
+    dplyr::select(Genes) %>% c()
+
+gene_collect <- list(
+    `Chimp Up` = chimp_up$Genes,
+    `Chimp Down` = chimp_down$Genes,
+    `Orangutan Up` = oran_up$Genes,
+    `Orangutan Down` = oran_down$Genes
+)
+```
+
+```{r}
+library(ggVennDiagram)
+g <- ggVennDiagram(gene_collect, force_upset = TRUE)
+ggsave(filename = "../../figures/upset_chimp_oran_GO_DE.jpg", dpi=200,
+       width=6, height=4)
+```
+
