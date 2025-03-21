@@ -1,0 +1,53 @@
+
+
+```{r}
+library(stringr)
+library(biomaRt)
+library(biomartr)
+library(dplyr)
+library(Rsamtools)
+library(edgeR)
+library(rlist)
+library(limma)
+library(TEffectR)
+```
+
+```{r}
+df <- read.csv("../../tables/GO_withDEinfo.csv")
+```
+
+### 1.load gene counts
+```{r}
+#load gene counts, te counts, and annotation file
+raw_count <- readRDS("../../bcells_exp/tetranscripts_rawcounts.rds")
+raw_count$hm_gene
+```
+
+
+### 2. read repeatmasker annotation
+Download the repeatmakser annotation files from three species:
+We use TEffectR::rm_format to process repeatmasker annotation file
+download link: https://www.repeatmasker.org/genomicDatasets/RMGenomicDatasetsAlt.html
+```{r}
+repeatmasker.annotation.human <- TEffectR::rm_format(filepath="~/Downloads/hg19.fa.out.gz")
+repeatmasker.annotation.chimp <- TEffectR::rm_format(filepath="~/Downloads/panTro4.fa.out.gz")
+repeatmasker.annotation.oran <- TEffectR::rm_format(filepath="~/Downloads/ponAbe2.fa.out.gz")
+```
+
+### 3. retrieve the genomic location of all genes in the given read counts matrix
+```{r}
+gene.annotation.human <- get_intervals(x = raw_count$hm_gene$gene, assembly = "hg19",
+                                       ID.type="ensembl_gene_id", URL="https://grch37.ensembl.org" )
+
+gene.annotation.chimp <- get_intervals(x = raw_count$chimp_gene$gene, 
+                                       assembly = "panTro4",
+                                       ID.type="ensembl_gene_id",
+                                       URL="https://oct2024.archive.ensembl.org")
+
+gene.annotation.oran <- get_intervals(x = raw_count$oran_gene$gene,
+                                      assembly = "ponAbe2",
+                                      ID.type="ensembl_gene_id",
+                                      URL="https://grch37.ensembl.org")
+```
+
+
