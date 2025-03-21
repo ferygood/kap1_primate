@@ -133,6 +133,22 @@ colnames(oran_TE)[1] <- "TE"
 rownames(oran_TE) <- 1:nrow(oran_TE)
 ```
 
+## save output of raw counts
+The raw counts are needed for TEffectR
+```{r}
+raw_count_list <- list(
+    "hm_gene" = hm_gene,
+    "hm_TE" = hm_TE,
+    "chimp_gene" = chimp_gene,
+    "chimp_TE" = chimp_TE,
+    "oran_gene" = oran_gene,
+    "oran_TE" = oran_TE
+)
+
+saveRDS(raw_count_list, file="../../bcells_exp/tetranscripts_rawcounts.rds")
+```
+
+
 ## Use TEKRABber
 ```{r}
 library(TEKRABber)
