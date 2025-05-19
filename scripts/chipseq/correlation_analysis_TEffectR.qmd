@@ -1,4 +1,5 @@
 
+set library path: .libPaths("/home/yaochung41/R/x86_64-pc-linux-gnu-library/4.4")
 
 ```{r}
 library(stringr)
@@ -37,17 +38,129 @@ repeatmasker.annotation.oran <- TEffectR::rm_format(filepath="~/Downloads/ponAbe
 ### 3. retrieve the genomic location of all genes in the given read counts matrix
 ```{r}
 gene.annotation.human <- get_intervals(x = raw_count$hm_gene$gene, assembly = "hg19",
-                                       ID.type="ensembl_gene_id", URL="https://grch37.ensembl.org" )
-
-gene.annotation.chimp <- get_intervals(x = raw_count$chimp_gene$gene, 
-                                       assembly = "panTro4",
                                        ID.type="ensembl_gene_id",
-                                       URL="https://oct2024.archive.ensembl.org")
+                                       URL="https://grch37.ensembl.org" )
 
-gene.annotation.oran <- get_intervals(x = raw_count$oran_gene$gene,
-                                      assembly = "ponAbe2",
-                                      ID.type="ensembl_gene_id",
-                                      URL="https://grch37.ensembl.org")
+# for chimpanzee
+chimp_mart <- useEnsembl(biomart = "ensembl",
+                         dataset = "ptroglodytes_gene_ensembl",
+                         host = "https://www.ensembl.org")
+
+gene.annotation.chimp <- getBM(attributes = c("chromosome_name", "start_position", "end_position", "strand", "ensembl_gene_id", "external_gene_name"),
+                                filters = "ensembl_gene_id",
+                                values = raw_count$chimp_gene$gene,
+                                mart = chimp_mart)
+
+# for orangutan
+oran_mart <- useEnsembl(biomart = "ensembl", 
+                        dataset = "pabelii_gene_ensembl",
+                        host = "https://www.ensembl.org")
+
+gene.annotation.oran <- getBM(attributes = c("chromosome_name", "start_position", "end_position", "strand", "ensembl_gene_id", "external_gene_name"),
+                                filters = "ensembl_gene_id",
+                                values = raw_count$oran_gene$gene,
+                                mart = oran_mart)
+
+## change column format of chimp and oran to match human
+rename_and_format_genes <- function(df, chr_prefix = "chr") {
+  # Rename columns
+  colnames(df) <- c("chr", "start", "end", "strand", "geneID", "geneName")
+  
+  # Add prefix to chr column if not already present
+  df$chr <- ifelse(grepl(paste0("^", chr_prefix), df$chr),
+                   df$chr,
+                   paste0(chr_prefix, df$chr))
+  
+  # Convert strand 1 to "+", -1 to "-"
+  df$strand <- ifelse(df$strand == 1, "+",
+                      ifelse(df$strand == -1, "-", as.character(df$strand)))
+  
+  return(df)
+}
+
+gene.annotation.chimp.modified <- rename_and_format_genes(gene.annotation.chimp)
+gene.annotation.oran.modified <- rename_and_format_genes(gene.annotation.oran)
+
+```
+
+prepare TE count input format:
+```{r}
+merge_te_with_annotation <- function(te_count, repeatmasker.annotation) {
+  # Make sure the repeat name column is consistently named
+  te_count <- te_count %>%
+    rename(TE = "repeat_name")
+  
+  # Deduplicate annotation to one row per repeat_name if needed
+  annotation_unique <- repeatmasker.annotation %>%
+    distinct(repeat_name, .keep_all = TRUE)
+  
+  # Merge count table with repeat annotation
+  merged <- te_count %>%
+    left_join(annotation_unique, by = "repeat_name")
+  
+  # Summarize and format
+  sum.repeat.counts <- merged %>%
+      select(
+          geneName = repeat_name,
+          repeatClass = repeat_type,
+          repeatName = repeat_family,
+          matches("^[hco][1-9]")) %>%
+      relocate(geneName, repeatClass, repeatName)
+  
+  sum.repeat.counts <- sum.repeat.counts %>%
+      filter(repeatClass %in% c("SINE", "DNA", "LINE", "LTR"))
+  
+  return(sum.repeat.counts)
+}
+
+```
+
+
+First analyze human data
+```{r}
+hm_gene_count <- raw_count$hm_gene 
+rownames(hm_gene_count) <- hm_gene_count$gene
+hm_gene_count <- hm_gene_count[,-1]
+
+hm_te_count <- merge_te_with_annotation(
+    te_count=raw_count$hm_TE, 
+    repeatmasker.annotation = repeatmasker.annotation.human)
+
+lm_hm <- TEffectR::apply_lm(gene.annotation = gene.annotation.human,
+                            gene.counts = hm_gene_count,
+                            repeat.counts = hm_te_count,
+                            covariates = NULL,
+                            prefix = "human")
+
+```
+
+```{r}
+chimp_gene_count <- raw_count$chimp_gene
+rownames(chimp_gene_count) <- chimp_gene_count$gene
+chimp_gene_count <- chimp_gene_count[,-1]
+
+chimp_te_count <- merge_te_with_annotation(
+    te_count=raw_count$chimp_TE,
+    repeatmasker.annotation = repeatmasker.annotation.chimp
+)
+
+# test Sample
+chimp_gene_count_test <- chimp_gene_count
+colnames(chimp_gene_count_test) <- paste0("Sample", seq(1:9))
+
+chimp_te_count_test <- chimp_te_count
+colnames(chimp_te_count_test)[4:12] <- paste0("Sample", seq(1:9)) 
+
+lm_chimp <-  TEffectR::apply_lm(gene.annotation = gene.annotation.chimp.modified,
+                               gene.counts = chimp_gene_count_test,
+                               repeat.counts = chimp_te_count_test,
+                               covariates = NULL,
+                               prefix = "chimp")
+
+
+g1 <- unlist(chimp_gene_count[1,], use.names=FALSE)
+t1 <- unlist(chimp_te_count[1, 4:12], use.names=FALSE)
+
 ```
 
 
