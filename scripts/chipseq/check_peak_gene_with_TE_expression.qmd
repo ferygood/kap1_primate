@@ -1,0 +1,84 @@
+```{r}
+library(dplyr)
+library(biomaRt)
+```
+# Intro
+This script tries to link the relationship of the expression of genes and their nearby TEs.
+
+We need three components: (1) selected genes found in GO terms. (2) TE identity within 3K region (3) gene expression values from selected genes.
+
+## We first analyzed the data in human
+
+```{r}
+# load GO genes
+hm_go_gene <- read.csv("../../tables/peak_gene_human.csv")
+hm_go_gene_id <- unique(hm_go_gene$ENSG)
+
+# load expression data
+hm_data <- readRDS("../../bcells_exp/hm_expression_tpm.rds")
+hm_gene <- hm_data[[1]] %>%
+    filter(ENSID %in% hm_go_gene_id)
+hm_TE <- hm_data[[2]]
+```
+
+## Get annotation information using Ensembl biomart
+```{r}
+ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
+
+hm_annotation <- getBM(
+    attributes = c("ensembl_gene_id", "chromosome_name", "start_position", "end_position"),
+    filters = "ensembl_gene_id",
+    values = hm_gene$ENSID,
+    mart = ensembl
+)
+
+colnames(hm_annotation) <- c("ENSID", "chr", "start", "end")
+
+hm_gene_annotated <- hm_annotation %>%
+    inner_join(hm_gene, join_by(ENSID == ENSID))
+
+hm_gene_annotated$chr <- paste0("chr", as.character(hm_gene_annotated$chr))
+```
+
+## add the TE idx information 
+```{r}
+# 1. Parse TE coordinates from hm_TE
+te_coords <- do.call(rbind, strsplit(hm_TE$ID, "\\|"))
+te_df <- data.frame(
+  TE_idx = rownames(hm_TE),
+  chr = te_coords[,1],
+  start = as.numeric(te_coords[,2]),
+  end = as.numeric(te_coords[,3]),
+  stringsAsFactors = FALSE
+)
+
+# 2. Initialize the TE_idx column
+hm_gene_annotated$TE_idx <- NA
+
+# 3. For each gene, check if any TE falls within ±3kb
+for (i in 1:nrow(hm_gene_annotated)) {
+  gene_chr <- hm_gene_annotated$chr[i]
+  gene_start <- hm_gene_annotated$start[i]
+  gene_end <- hm_gene_annotated$end[i]
+
+  # Check overlap with ±3000 bp
+  hits <- te_df[
+    te_df$chr == gene_chr &
+    te_df$end >= (gene_start - 3000) &
+    te_df$start <= (gene_end + 3000),
+  ]
+
+  if (nrow(hits) > 0) {
+    hm_gene_annotated$TE_idx[i] <- paste(hits$TE_idx, collapse = ",")
+  }
+}
+
+```
+
+## select rows that TE_idx is not empty
+```{r}
+df <- hm_gene_annotated[!is.na(hm_gene_annotated$TE_idx) & hm_gene_annotated$TE_idx != "",]
+
+hm_result <- analyze_gene_te_correlations(df, hm_TE)
+```
+

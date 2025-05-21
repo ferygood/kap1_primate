@@ -1,0 +1,130 @@
+```{r}
+library(dplyr)
+library(biomaRt)
+```
+# Intro
+This script tries to link the relationship of the expression of genes and their nearby TEs.
+
+We need three components: (1) selected genes found in GO terms. (2) TE identity within 3K region (3) gene expression values from selected genes.
+
+## We first analyzed the data in chimpanzee
+
+```{r}
+# load GO genes
+go_gene <- read.csv("../../tables/peak_gene_chimp.csv")
+go_gene_id <- unique(go_gene$ENSG)
+
+# load expression data
+data <- readRDS("../../bcells_exp/chimp_expression_tpm.rds")
+gene <- data[[1]] %>%
+    filter(ENSID %in% go_gene_id)
+TE <- data[[2]]
+```
+
+## Get annotation information using Ensembl biomart
+```{r}
+ensembl <- useEnsembl(biomart = "genes", dataset = "ptroglodytes_gene_ensembl")
+
+annotation <- getBM(
+    attributes = c("ensembl_gene_id", "chromosome_name", "start_position", "end_position"),
+    filters = "ensembl_gene_id",
+    values = gene$ENSID,
+    mart = ensembl
+)
+
+colnames(annotation) <- c("ENSID", "chr", "start", "end")
+
+gene_annotated <- annotation %>%
+    inner_join(gene, join_by(ENSID == ENSID))
+
+gene_annotated$chr <- paste0("chr", as.character(gene_annotated$chr))
+```
+
+## add the TE idx information 
+```{r}
+# 1. Parse TE coordinates from hm_TE
+te_coords <- do.call(rbind, strsplit(TE$ID, "\\|"))
+te_df <- data.frame(
+  TE_idx = rownames(TE),
+  chr = te_coords[,1],
+  start = as.numeric(te_coords[,2]),
+  end = as.numeric(te_coords[,3]),
+  stringsAsFactors = FALSE
+)
+
+# 2. Initialize the TE_idx column
+gene_annotated$TE_idx <- NA
+
+# 3. For each gene, check if any TE falls within ±3kb
+for (i in 1:nrow(gene_annotated)) {
+  gene_chr <- gene_annotated$chr[i]
+  gene_start <- gene_annotated$start[i]
+  gene_end <- gene_annotated$end[i]
+
+  # Check overlap with ±3000 bp
+  hits <- te_df[
+    te_df$chr == gene_chr &
+    te_df$end >= (gene_start - 3000) &
+    te_df$start <= (gene_end + 3000),
+  ]
+
+  if (nrow(hits) > 0) {
+    gene_annotated$TE_idx[i] <- paste(hits$TE_idx, collapse = ",")
+  }
+}
+
+```
+
+## select rows that TE_idx is not empty
+```{r}
+df <- gene_annotated[!is.na(gene_annotated$TE_idx) & gene_annotated$TE_idx != "",]
+
+corr_result <- analyze_gene_te_correlations(df, TE)
+```
+
+## covert gene name and TE name
+```{r}
+# 1. Replace gene_id with geneName
+corr_result$gene_name <- go_gene$geneName[match(corr_result$gene_id, go_gene$ENSG)]
+
+# 1. Extract the TE name (first field in the 4th component of the split ID string)
+TE_names <- sapply(strsplit(TE$ID, "\\|"), function(x) strsplit(x[4], ":")[[1]][1])
+
+# 2. Create named vector using rownames (e.g., chimp1 = "AluY")
+te_name_map <- setNames(TE_names, rownames(TE))
+
+# 3. Map TE names to your corr_result$te_ids
+map_te_names <- function(te_str) {
+  ids <- unlist(strsplit(te_str, ","))
+  mapped <- te_name_map[ids]
+  paste(mapped, collapse = ",")
+}
+
+# 4. Apply mapping
+corr_result$TEs <- sapply(corr_result$te_ids, map_te_names)
+
+# 5. (Optional) Map gene_id to gene name
+corr_result$gene_name <- go_gene$geneName[match(corr_result$gene_id, go_gene$ENSG)]
+
+# 6. Clean and reorder
+corr_result_final <- corr_result[, c("gene_name", "TEs", "te_coef", "te_pval", "te_fdr", "adj_r_squared")]
+
+# Show result
+head(corr_result_final)
+
+```
+# filter data
+```{r}
+# Function to check if any p-value in a comma-separated string is < 0.05
+has_significant_pval <- function(pval_str) {
+  pvals <- as.numeric(strsplit(pval_str, ",")[[1]])
+  any(pvals < 0.05)
+}
+
+# Apply function row-wise and filter
+filtered_df <- corr_result_final[sapply(corr_result_final$te_pval, has_significant_pval), ]
+
+filtered_df
+
+```
+
