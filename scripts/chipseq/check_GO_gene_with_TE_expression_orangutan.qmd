@@ -8,23 +8,41 @@ This script tries to link the relationship of the expression of genes and their 
 
 We need three components: (1) selected genes found in GO terms. (2) TE identity within 3K region (3) gene expression values from selected genes.
 
-## We first analyzed the data in chimpanzee
+## We first analyzed the data in orangutan
 
 ```{r}
 # load GO genes
-go_gene <- read.csv("../../tables/peak_gene_chimp.csv")
-go_gene_id <- unique(go_gene$ENSG)
+go_gene_cc <- read.table("../../tables/oran_peak_cc.txt", 
+                      sep = "\t", 
+                      header = TRUE, 
+                      quote = "", 
+                      fill = TRUE, 
+                      stringsAsFactors = FALSE)
+
+go_gene_bp <- read.table("../../tables/oran_peak_bp.txt", 
+                      sep = "\t", 
+                      header = TRUE, 
+                      quote = "", 
+                      fill = TRUE, 
+                      stringsAsFactors = FALSE)
+
+
+go_gene_id_cc <- strsplit(go_gene_cc$geneID, "/")[[1]]
+go_gene_id_bp <- strsplit(go_gene_bp$geneID, "/")[[1]]
+
+go_gene_id <- c(go_gene_id_cc, go_gene_id_bp) #43
 
 # load expression data
-data <- readRDS("../../bcells_exp/chimp_expression_tpm.rds")
+data <- readRDS("../../bcells_exp/oran_expression_tpm.rds")
 gene <- data[[1]] %>%
-    filter(ENSID %in% go_gene_id)
+    filter(substr(ENSID, 1, 18) %in% go_gene_id) %>%
+    mutate(ENSID = substr(ENSID, 1, 18))
 TE <- data[[2]]
 ```
 
 ## Get annotation information using Ensembl biomart
 ```{r}
-ensembl <- useEnsembl(biomart = "genes", dataset = "ptroglodytes_gene_ensembl")
+ensembl <- useEnsembl(biomart = "genes", dataset = "pabelii_gene_ensembl")
 
 annotation <- getBM(
     attributes = c("ensembl_gene_id", "chromosome_name", "start_position", "end_position"),
@@ -133,3 +151,4 @@ filtered_df <- corr_result_final[sapply(corr_result_final$te_pval, has_significa
 filtered_df
 
 ```
+

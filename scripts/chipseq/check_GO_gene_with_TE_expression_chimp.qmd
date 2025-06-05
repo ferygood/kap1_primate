@@ -12,8 +12,13 @@ We need three components: (1) selected genes found in GO terms. (2) TE identity 
 
 ```{r}
 # load GO genes
-go_gene <- read.csv("../../tables/peak_gene_chimp.csv")
-go_gene_id <- unique(go_gene$ENSG)
+go_gene <- read.table("../../tables/chimp_peak_cc.txt", 
+                      sep = "\t", 
+                      header = TRUE, 
+                      quote = "", 
+                      fill = TRUE, 
+                      stringsAsFactors = FALSE)
+go_gene_id <- strsplit(go_gene$geneID, "/")[[1]]
 
 # load expression data
 data <- readRDS("../../bcells_exp/chimp_expression_tpm.rds")
@@ -113,7 +118,7 @@ corr_result$TEs <- sapply(corr_result$te_ids, map_te_names)
 corr_result$gene_name <- go_gene$geneName[match(corr_result$gene_id, go_gene$ENSG)]
 
 # 6. Clean and reorder
-corr_result_final <- corr_result[, c("gene_name", "TEs", "te_coef", "te_pval", "te_fdr", "adj_r_squared")]
+corr_result_final <- corr_result[, c("gene_id", "te_ids", "te_coef", "te_pval", "te_fdr", "adj_r_squared")]
 
 # Show result
 head(corr_result_final)
@@ -133,3 +138,4 @@ filtered_df <- corr_result_final[sapply(corr_result_final$te_pval, has_significa
 filtered_df
 
 ```
+
