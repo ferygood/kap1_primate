@@ -1,0 +1,24 @@
+In this script, I want to get species specific peak, especially in the orthologous region.
+
+First, I will use bedtools to extract the peaks. The data are stored in the `peaks/<species>_annotated_peaks`.
+
+|     |       |       |        |
+|-----|-------|-------|--------|
+|     | H     | C     | O      |
+| H   | 2,077 | 19    | 820    |
+| C   |       | 5,754 | 178    |
+| O   |       |       | 10,098 |
+
+Here is the command line for liftOver file, chain file needs to prepare in advance, such as going to this link(<https://hgdownload.cse.ucsc.edu/goldenpath/ponAbe2/liftOver/>)
+
+```{bash}
+liftOver human_TE_only_sorted.bed ~/Downloads/hg19ToPonAbe2.over.chain human_to_oran.bed human_to_oran_unmapped.bed
+```
+
+Then I did the exclusive join (anti-left-join) using bedtools
+
+```{bash}
+bedtools intersect -a oran_TE_only_liftoverInput.bed -b human_to_oran.bed chimp_to_oran.bed -v > oran_unique_peak.bed
+```
+
+Results are obtained each species have species-specific peaks: human 61% (1270/2077), chimp 94% (5435/5754), oran 98% (9899/10098)
