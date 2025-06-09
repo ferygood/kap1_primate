@@ -1,0 +1,194 @@
+I first get the KRAB-ZNFs in motifs, and the file is in `tables/motifs.csv`.
+
+```{r}
+library(dplyr)
+```
+
+```{r}
+df_motif <- read.csv('../../../tables/znfs_motifs.csv')
+```
+
+##1. get the number of ZNFs from human motifs
+```{r}
+hm_df_motifs <- df_motif %>% filter(species=="human") 
+unique(hm_df_motifs$ALT_ID)
+hm_motifs_znfs <- unique(hm_df_motifs$ALT_ID)
+hm_motifs_znfs <- hm_motifs_znfs[-c(2,4,6)]
+hm_motifs_znfs <- c(hm_motifs_znfs, "ZNF524", "ZNF384",
+                    "ZNF238", "ZNF306")
+# in total there are 33 znfs observe in motifs in human
+```
+
+##2. get the number of ZNFs from chimp motifs
+```{r}
+chimp_df_motifs <- df_motif %>% filter(species=="chimp")
+chimp_motifs_znfs <- c("ZNF85", "ZKSCAN3")
+# there are only two znfs found in the motifs region
+```
+
+##3. get the number of ZNFs from oran motifs
+```{r}
+oran_df_motifs <- df_motif %>% filter(species=="orangutan")
+oran_motifs_znfs <- unique(oran_df_motifs$ALT_ID)
+oran_motifs_znfs <- oran_motifs_znfs[-c(1,2,6)]
+# there are 7 znfs found in motifs region
+```
+
+# Step2. Download MEME files and MEME suite
+I use the conda meme (https://anaconda.org/bioconda/meme)
+, and manually download the .meme file based on our motif discovery result.
+An example of the bash command is like:
+```{bash}
+conda create -n meme bioconda::meme
+fimo --oc fimo_out znf257.meme te_sequence.fa
+```
+
+The next step, I prepare the fasta file including masking region, and also the repeatmasker file,
+```{bash}
+bedtools getfasta -fi hg19.fa -bed hg19_rmsk.bed -fo te_sequences_hg19.fa
+
+fimo --oc fim_out meme_files/MA1710.1.meme ~/Downloads/te_sequences_hg19.fa
+```
+
+For fimo batch calculation, I wrote a script `run_fimo.sh` and can be use like
+```{bash}
+bash run_fimo.sh --input-folder \
+    -fasta \
+    -output \
+```
+
+## step 3. map motif to TEs and obtain which ZNF is responsible for the binding of TEs
+Here, I first use the chimpanzee as an example:
+```{r}
+# MA1973.1 ZKSCAN3 in chimp
+library(data.table)
+library(GenomicRanges)
+library(twice)
+library(dplyr)
+
+# load TE table
+data("hg19rmsk_info")
+
+# read files
+fimo_table <- read.table('fim_out_chimp/MA1973.1/best_site.narrowPeak')
+
+rmsk <- fread("~/Downloads/panTro4_rmsk.bed", header=FALSE)
+
+# convert to GRanges
+fimo_gr <- GRanges(seqnames = fimo_table$V1,
+                   ranges = IRanges(
+                       start=fimo_table$V2, end=fimo_table$V3),
+                   strand=fimo_table$V6)
+
+rmsk_gr <- GRanges(seqnames = rmsk$V1,
+                   ranges = IRanges(
+                       start=rmsk$V2, end=rmsk$V3),
+                   strand=rmsk$V6)
+
+hits <- findOverlaps(fimo_gr, rmsk_gr, type="within")
+
+matched_rmsk <- rmsk[subjectHits(hits)]
+matched_fimo <- fimo_table[queryHits(hits),]
+
+# merge table
+merge_df <- cbind(matched_fimo[,c(1,2,3,4,6,8)], matched_rmsk[,c(4)])
+colnames(merge_df) <- c("CRHOM", "START", "END", "MOTIF", "STRAND", "PVALUE", "TE")
+
+merge_df <- merge_df %>% 
+    inner_join(hg19rmsk_info, join_by(TE==gene_id))
+
+#matched_te_filter[ , .N, by = family_id][N > 10]
+# save table, ~ 1mb size
+write.table(merge_df, file="test.csv", sep=',')
+
+```
+
+To batched calculate the result, I write a function `process_fimo()`
+```{r}
+library(data.table)
+library(GenomicRanges)
+library(twice)
+library(dplyr)
+library(tools)
+
+process_fimo <- function(input_folder, rmsk_path, output_folder) {
+  # Ensure output folder exists
+  if (!dir.exists(output_folder)) {
+    dir.create(output_folder, recursive = TRUE)
+  }
+
+  # Load hg19rmsk_info from twice
+  data("hg19rmsk_info")
+
+  # Load RepeatMasker annotation
+  rmsk <- fread(rmsk_path, header = FALSE)
+  rmsk_gr <- GRanges(seqnames = rmsk$V1,
+                     ranges = IRanges(start = rmsk$V2, end = rmsk$V3),
+                     strand = rmsk$V6)
+
+  # Get all best_site.narrowPeak files recursively
+  fimo_files <- list.files(input_folder, pattern = "best_site\\.narrowPeak$", recursive = TRUE, full.names = TRUE)
+
+  # Loop through each FIMO file
+  for (fimo_file in fimo_files) {
+    # Derive motif name from subfolder name
+    motif_name <- basename(dirname(fimo_file))
+    message("Processing motif: ", motif_name)
+
+    # Read FIMO file
+    fimo_table <- fread(fimo_file, header = FALSE)
+
+    if (nrow(fimo_table) == 0) {
+      message("  Skipping: No entries in file.")
+      next
+    }
+
+    # Build GRanges from FIMO data
+    fimo_gr <- GRanges(seqnames = fimo_table$V1,
+                       ranges = IRanges(start = fimo_table$V2, end = fimo_table$V3),
+                       strand = fimo_table$V6)
+
+    # Find overlaps
+    hits <- findOverlaps(fimo_gr, rmsk_gr, type = "within")
+
+    # Subset based on hits
+    matched_rmsk <- rmsk[subjectHits(hits)]
+    matched_fimo <- fimo_table[queryHits(hits),]
+
+    if (nrow(matched_rmsk) == 0 || nrow(matched_fimo) == 0) {
+      message("  No overlaps found for motif: ", motif_name)
+      next
+    }
+
+    # Merge into a single data frame
+    merge_df <- cbind(matched_fimo[, c(1, 2, 3, 4, 6, 8)], matched_rmsk[, c(4)])
+    colnames(merge_df) <- c("CHROM", "START", "END", "MOTIF", "STRAND", "PVALUE", "TE")
+
+    # Join with twice metadata
+    merge_df <- merge_df %>%
+      inner_join(hg19rmsk_info, by = c("TE" = "gene_id"))
+
+    # Save output
+    output_file <- file.path(output_folder, paste0(motif_name, "_TEs.csv"))
+    fwrite(merge_df, file = output_file, sep = ",")
+    message("  Output saved: ", output_file)
+  }
+}
+
+```
+
+run the function for each species:
+```{r}
+process_fimo(input_folder = "fim_out_human/",
+             rmsk_path = "~/Downloads/hg19_rmsk.bed",
+             output_folder = "human_motif_TE")
+
+process_fimo(input_folder = "fim_out_chimp/",
+             rmsk_path = "~/Downloads/panTro4_rmsk.bed",
+             output_folder = "chimp_motif_TE")
+
+process_fimo(input_folder = "fimo_output_oran/",
+             rmsk_path = "~/Downloads/ponAbe2_rmsk.bed",
+             output_folder = "oran_motif_TE")
+```
+
