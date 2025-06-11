@@ -1,0 +1,224 @@
+
+```{r}
+library(dplyr)
+library(twice)
+library(textshape)
+library(tibble)
+```
+
+```{r}
+#load data
+data <- readRDS("../../bcells_exp/tetranscriptDE.rds")
+data("hmKZNFs337")
+data("hg19rmsk_info")
+
+# prepare gene list
+gene_df <- hmKZNFs337
+gene_df <- rbind(hmKZNFs337, c("ENSG00000130726", "KAP1"))
+
+# prepare TE list
+te_class_id <- c("SINE", "DNA", "LTR", "LINE", "SVA")
+te_list <- hg19rmsk_info %>% filter(class_id %in% te_class_id)
+```
+KRAB-ZNF list and TEs subset
+```{r}
+hm_znf <- c("PRDM9","ZNF135","ZNF136","ZNF140","ZNF238","ZNF257","ZNF263",
+              "ZNF281","ZNF306","ZNF320","ZNF331","ZNF341","ZNF354C","ZNF384",
+              "ZNF416","ZNF417","ZNF418","ZNF449","ZNF460","ZNF524","ZNF549",
+              "ZNF574","ZNF675","ZNF667","ZNF684","ZNF692","ZNF701","ZNF76",
+              "ZNF768","ZNF816","ZNF93","ZKSCAN3","ZKSCAN5")
+
+chimp_znf <- c("ZNF549","ZNF85","ZKSCAN3")
+
+oran_znf <- c("ZNF135","ZNF238","ZNF460","ZNF549","ZNF574",
+              "ZNF682","ZNF684","ZNF692","ZNF784")
+```
+
+Check if all KRAB-ZNF express in the RNA-seq data
+```{r}
+hmchimp_gene <- data$hmchimpDE$normalized_gene_counts %>%
+    data.frame() %>%
+    mutate(ensid=rownames(.)) %>%
+    inner_join(gene_df, join_by(ensid==ensembl_gene_id)) %>%
+    filter(external_gene_name %in% hm_znf)
+
+hmoran_gene <- data$hmoranDE$normalized_gene_counts %>%
+    data.frame() %>%
+    mutate(ensid=rownames(.)) %>%
+    inner_join(gene_df, join_by(ensid==ensembl_gene_id)) %>%
+    filter(external_gene_name %in% oran_znf)
+```
+
+Prepare the expression matrix for visualization
+human has 20, chimp has 3, and orangutan has 2.
+
+```{r}
+df_hmchimp <- data.frame(
+    H = rowMeans(data$hmchimpDE$normalized_gene_counts[, 1:9]),
+    C = rowMeans(data$hmchimpDE$normalized_gene_counts[, 10:18])
+)
+
+df_hmoran <- data.frame(
+    O = rowMeans(data$hmoranDE$normalized_gene_counts[,10:18]))
+
+df_gene_merge <- merge(df_hmchimp, df_hmoran, by="row.names", all=TRUE)
+
+znf_candidate <- c("ZNF135","ZNF136","ZNF140","ZNF257","ZNF263","ZNF320",
+                   "ZNF331","ZNF354C","ZNF416","ZNF417","ZNF418","ZNF449",
+                   "ZNF460","ZNF549","ZNF667","ZNF675","ZNF684","ZNF701",
+                   "ZKSCAN3","ZKSCAN5","ZNF85")
+
+df_gene_merge_filter <- df_gene_merge %>%
+    inner_join(gene_df, join_by(Row.names==ensembl_gene_id)) %>%
+    filter(external_gene_name %in% znf_candidate)
+    
+df_input <- df_gene_merge_filter[,c(2,3,4)]
+rownames(df_input) <- df_gene_merge_filter$external_gene_name
+```
+
+Visualize using pheatmap
+```{r}
+library(pheatmap)
+df_log <- log2(df_input)
+
+pheatmap(df_log,
+         na_col="grey",
+         main = "Motif KRAB-ZNFs",
+         filename = "../../figures/Motif_kznfs_exp.png",
+         cluster_rows = F,
+         cluster_cols = F,
+         cellwidth = 15,
+         cellheight = 15,
+         angle_col = 0,
+         width = 8, height=10)
+
+```
+
+Prepare the expression matrix for TEs
+```{r}
+te_hmchimp <- data$hmchimpDE$normalized_te_counts
+te_hmoran <- data$hmoranDE$normalized_te_counts
+
+df_te_hmchimp <- data.frame(
+    H = rowMeans(te_hmchimp[, 1:9]),
+    C = rowMeans(te_hmchimp[, 10:18])
+)
+
+df_te_hmoran <- data.frame(
+    O = rowMeans(te_hmoran[, 10:18])
+)
+
+df_te_merge <- merge(df_te_hmchimp, df_te_hmoran, by="row.names", all=TRUE)
+
+DNA_list <- te_list %>% filter(class_id=="DNA")
+LINE_list <- te_list %>% filter(class_id=="LINE")
+SINE_list <- te_list %>% filter(class_id=="SINE")
+LTR_list <- te_list %>% filter(class_id=="LTR")
+
+# DNA element
+df_te_DNA <- df_te_merge %>% filter(Row.names %in% DNA_list$gene_id)
+rownames(df_te_DNA) <- df_te_DNA$Row.names
+df_te_DNA <- df_te_DNA[,c(2,3,4)]
+df_te_DNA_rank <- df_te_DNA %>%
+    rownames_to_column("gene_id") %>%
+    rowwise() %>%
+    mutate(row_variance = var(c(H, C, O), na.rm = TRUE)) %>%
+    arrange(desc(row_variance)) %>%
+    select(-row_variance) %>%
+    column_to_rownames("gene_id")
+df_te_DNA_rank_log <- log2(df_te_DNA_rank)
+df_te_DNA_rank_log_20 <- df_te_DNA_rank_log[c(1:20),]
+
+pheatmap(df_te_DNA_rank_log_20,
+         na_col="grey",
+         main = "DNA",
+         filename = "../../figures/DNA_exp.png",
+         cluster_rows = F,
+         cluster_cols = F,
+         cellwidth = 15,
+         cellheight = 15,
+         angle_col = 0,
+         width = 8, height=10)
+```
+
+```{r}
+# LINE element
+df_te_LINE <- df_te_merge %>% filter(Row.names %in% LINE_list$gene_id)
+rownames(df_te_LINE) <- df_te_LINE$Row.names
+df_te_LINE <- df_te_LINE[,c(2,3,4)]
+df_te_LINE_rank <- df_te_LINE %>%
+    rownames_to_column("gene_id") %>%
+    rowwise() %>%
+    mutate(row_variance = var(c(H, C, O), na.rm = TRUE)) %>%
+    arrange(desc(row_variance)) %>%
+    select(-row_variance) %>%
+    column_to_rownames("gene_id")
+df_te_LINE_rank_log <- log2(df_te_LINE_rank)
+df_te_LINE_rank_log_20 <- df_te_LINE_rank_log[c(1:20),]
+
+pheatmap(df_te_LINE_rank_log_20,
+         na_col="grey",
+         main = "LINE",
+         filename = "../../figures/LINE_exp.png",
+         cluster_rows = F,
+         cluster_cols = F,
+         cellwidth = 15,
+         cellheight = 15,
+         angle_col = 0,
+         width = 8, height=10)
+```
+
+```{r}
+# SINE element
+df_te_SINE <- df_te_merge %>% filter(Row.names %in% SINE_list$gene_id)
+rownames(df_te_SINE) <- df_te_SINE$Row.names
+df_te_SINE <- df_te_SINE[,c(2,3,4)]
+df_te_SINE_rank <- df_te_SINE %>%
+    rownames_to_column("gene_id") %>%
+    rowwise() %>%
+    mutate(row_variance = var(c(H, C, O), na.rm = TRUE)) %>%
+    arrange(desc(row_variance)) %>%
+    select(-row_variance) %>%
+    column_to_rownames("gene_id")
+df_te_SINE_rank_log <- log2(df_te_SINE_rank)
+df_te_SINE_rank_log_20 <- df_te_SINE_rank_log[c(1:20),]
+
+pheatmap(df_te_SINE_rank_log_20,
+         na_col="grey",
+         main = "SINE",
+         filename = "../../figures/SINE_exp.png",
+         cluster_rows = F,
+         cluster_cols = F,
+         cellwidth = 15,
+         cellheight = 15,
+         angle_col = 0,
+         width = 8, height=10)
+
+```
+
+```{r}
+df_te_LTR <- df_te_merge %>% filter(Row.names %in% LTR_list$gene_id)
+rownames(df_te_LTR) <- df_te_LTR$Row.names
+df_te_LTR <- df_te_LTR[,c(2,3,4)]
+df_te_LTR_rank <- df_te_LTR %>%
+    rownames_to_column("gene_id") %>%
+    rowwise() %>%
+    mutate(row_variance = var(c(H, C, O), na.rm = TRUE)) %>%
+    arrange(desc(row_variance)) %>%
+    select(-row_variance) %>%
+    column_to_rownames("gene_id")
+df_te_LTR_rank_log <- log2(df_te_LTR_rank)
+df_te_LTR_rank_log_20 <- df_te_LTR_rank_log[c(1:20),]
+
+pheatmap(df_te_LTR_rank_log_20,
+         na_col="grey",
+         main = "LTR",
+         filename = "../../figures/LTR_exp.png",
+         cluster_rows = F,
+         cluster_cols = F,
+         cellwidth = 15,
+         cellheight = 15,
+         angle_col = 0,
+         width = 8, height=10)
+```
+
