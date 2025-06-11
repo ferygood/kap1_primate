@@ -14,3 +14,10 @@ references/ponAbe2_rsmk.bed
 ref_peaks/*
 
 meme_result/
+
+*.DS_Store
+meme_files/
+
+scripts/chipseq/motif_analysis/fim_out_chimp/
+scripts/chipseq/motif_analysis/fim_out_human/
+scripts/chipseq/motif_analysis/fimo_output_oran/
