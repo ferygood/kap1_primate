@@ -79,7 +79,7 @@ rownames(df_input) <- df_gene_merge_filter$external_gene_name
 Visualize using pheatmap
 ```{r}
 library(pheatmap)
-df_log <- log2(df_input)
+df_log <- log2(df_input + 1)
 
 pheatmap(df_log,
          na_col="grey",

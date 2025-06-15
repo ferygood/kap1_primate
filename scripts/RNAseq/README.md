@@ -11,4 +11,5 @@
 11. `extract_motif_chipexo.qmd` There are 159 KRAB-ZNFs used in ChIP-exo, I want to extract their binding sequence.
 12. `expression_profile_preparation.qmd` This file carry on the output from `rmcorr_human.qmd`, `rmcorr_chimp.qmd`, and `rmcorr_oran.qmd`. The output is `expression_merge.rds`.
 13. `expression_profile_analysis.qmd` This file follows the previous file to keep the preparation step more clean and easy to maintain.
+     Output figures are the swarmplot for checking bound-TE is repressed and at lower expression level.
 14. `compare_species_rmsk.qmd` There is no difference between the RepeatMasker annotation in three species. Visualization filename is `check_TEcount_speciesChr.png`.

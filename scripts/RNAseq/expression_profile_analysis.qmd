@@ -1,9 +1,10 @@
-
+Check if bound-TE has lower expression level
 
 ```{r}
 library(ggplot2)
+library(dplyr)
+library(ggbeeswarm)
 ```
-
 
 
 ```{r}
@@ -40,10 +41,12 @@ uniq_oran_te <- unique(oran_overlap_process$teName) # 15
 
 
 ```{r}
+# chimp
 chimp_te_exp <- merge_exp$chimp_TE_filter %>%
     filter(teName %in% uniq_chimp_te) %>%
     mutate(overlap = ifelse(ID %in% chimp_overlap_process$ID, 1, 0))
 
+# orangutan
 oran_te_exp <- merge_exp$oran_TE_filter %>%
     filter(teName %in% uniq_oran_te) %>%
     mutate(overlap = ifelse(ID %in% oran_overlap_process$ID, 1, 0))
@@ -51,8 +54,39 @@ oran_te_exp <- merge_exp$oran_TE_filter %>%
 
 Visualize:
 ```{r}
-library(ggbeeswarm)
+df_hm <- merge_exp$hm_TE_filter
+te_list <- c("AluSx1", "AluY", "Charlie1b", "FAM", "L1M4", "L1M5", "L1MC1",
+             "L1MC4", "L1MC5", "L1MC5a", "L1ME3F", "L2", "MER2", "MIR", "MIRb", 
+             "AluJo", "AluSg", "AmnSINE1")
 
+df_hm_filter <- df_hm %>% filter(teName %in% te_list)
+df_hm_filter$overlap <- "0"
+
+g_hm <- ggplot(df_hm_filter, aes(x=teName, y=log(exp))) +
+    geom_quasirandom(aes(color = factor(overlap), alpha = factor(overlap)), size = 2) +
+    scale_color_manual(
+    values = c("0" = "blue", "1" = "red"), 
+    name = "Overlap",
+    labels = c("No Overlap", "Overlap")
+  ) +
+  scale_alpha_manual(
+    values = c("0" = 0.5, "1" = 1), 
+    guide = "none" 
+  ) +
+  labs(
+    title = "Human",
+    x = "",
+    y = "Expression (Log exp)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    legend.position = "top"
+  )
+```
+
+
+```{r}
 g_chimp <- ggplot(chimp_te_exp, aes(x = teName, y = log(exp))) +
   geom_quasirandom(aes(color = factor(overlap), alpha = factor(overlap)), size = 2) +
   scale_color_manual(
@@ -101,6 +135,8 @@ g_oran <- ggplot(oran_te_exp, aes(x = teName, y = log(exp))) +
 ```
 
 ```{r}
+ggsave(filename = "../../figures/human_rnaseq_human.jpg", g_hm, dpi = 400, width = 12, height=4)
+
 ggsave(filename = "../../figures/chimp_rnaseq_chip.jpg", g_chimp,
        dpi=400, width=7, height=4)
 
