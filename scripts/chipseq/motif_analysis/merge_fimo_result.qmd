@@ -1,0 +1,70 @@
+# Prepare FIMO result for dashboard
+
+```{r}
+library(data.table)
+library(dplyr)
+```
+
+Load data from the fimo and TE merge table
+```{r}
+hm_path <- "human_motif_TE"
+hm_csv <- list.files(path = hm_path, pattern = "*.csv", full.names=TRUE) 
+merged_hm <- rbindlist(lapply(hm_csv, fread), fill=TRUE)
+merged_hm <- as.data.frame(merged_hm)
+
+chimp_path <- "chimp_motif_TE"
+chimp_csv <- list.files(path = chimp_path, pattern = "*.csv", full.names=TRUE) 
+merged_chimp <- rbindlist(lapply(chimp_csv, fread), fill=TRUE)
+merged_chimp <- as.data.frame(merged_chimp)
+
+oran_path <- "oran_motif_TE"
+oran_csv <- list.files(path = oran_path, pattern = "*.csv", full.names=TRUE) 
+merged_oran <- rbindlist(lapply(oran_csv, fread), fill=TRUE)
+merged_oran <- as.data.frame(merged_oran)
+
+```
+
+Filter motifs that have znf express:
+```{r}
+motif_table <- read.csv("../../../tables/znfs_motifs.csv")
+znf_candidate <- c("ZNF135","ZNF136","ZNF140","ZNF257","ZNF263","ZNF320",
+                   "ZNF331","ZNF354C","ZNF416","ZNF417","ZNF418","ZNF449",
+                   "ZNF460","ZNF549","ZNF667","ZNF675","ZNF684","ZNF701",
+                   "ZKSCAN3","ZKSCAN5","ZNF85")
+motif_znf_exp <- motif_table %>%
+    filter(ALT_ID %in% znf_candidate) %>%
+    select(c(3,4)) %>%
+    distinct()
+add_one <- c("MA1720.1", "ZNF85")
+
+motif_znf_exp <- rbind(motif_znf_exp, add_one)
+
+# merge all fimo
+merged_hm <- merged_hm %>% mutate(species="human")
+merged_chimp <- merged_chimp %>% mutate(species="chimp")
+merged_oran <- merged_oran %>% mutate(species="orangutan")
+merged_all <- rbind(merged_hm, merged_chimp, merged_oran)
+
+merged_all <- merged_all %>%
+    inner_join(motif_znf_exp, join_by(MOTIF==MOTIF_ID))
+colnames(merged_all)[11] <- "gene"
+
+# post-filter
+# reaarange column
+merged_all_rearrange <- merged_all %>% select(c(10,1,2,3,4,11,7,8,9,5,6))
+colnames(merged_all_rearrange)[c(1,6,8,9)] <- c("SPECIES", "GENE", "FAMILY", "CLASS") 
+
+# filter chr
+merged_all_chr <- merged_all_rearrange %>% 
+    filter(nchar(CHROM)< 6) %>%
+    filter(CHROM != "chrUn")
+
+# filter TEs
+merged_all_TE <- merged_all_chr %>%
+    filter(CLASS %in% c("SINE", "LINE", "LTR", "DNA", "SVA")) %>%
+    mutate(CLASS = ifelse(CLASS == "SVA", "SINE", CLASS))
+
+write.csv(merged_all_TE, file="df_dashboard.csv")
+```
+
+

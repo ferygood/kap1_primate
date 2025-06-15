@@ -1,0 +1,96 @@
+```{r}
+library(dplyr)
+library(twice)
+```
+
+Check if the genes is expressed:
+
+```{r}
+df_go <- read.csv("../../tables/GO_withDEinfo.csv")
+data <- readRDS("../../bcells_exp/tetranscriptDE.rds")
+data("hmKZNFs337")
+
+up_genes <- unlist(strsplit(df_go$UP, ",\\s*"))
+up_genes <- unique(up_genes) #56
+
+down_genes <- unlist(strsplit(df_go$DOWN, ",\\s*"))
+down_genes <- unique(down_genes) #140
+```
+
+```{r}
+ZNFs <- c("ZNF263", "ZNF417", "ZNF418", "ZNF667", "ZKSCAN3")
+ZNFs_ensid <- hmKZNFs337 %>% filter(external_gene_name %in% ZNFs)
+```
+
+```{r}
+gene_name_table <- data$ortholog_hmchimp
+```
+
+Prepare correlation input
+
+```{r}
+df_corr_gene <- data$hmchimpDE$geneCorrInputRef
+df_corr_gene_process <- df_corr_gene %>%
+    mutate(ensid=rownames(.)) %>%
+    inner_join(gene_name_table[,c(1,2)], join_by(ensid==refEnsemblID)) %>%
+    distinct(refGene, .keep_all=TRUE)
+
+rownames(df_corr_gene_process) <- df_corr_gene_process$refGene
+
+# prepare krab-znfs
+df_corr_kznf <- df_corr_gene_process %>%
+    filter(refGene %in% ZNFs) %>%
+    select(c(1:9))
+
+df_corr_genes_up <- df_corr_gene_process %>%
+    filter(refGene %in% up_genes) %>%
+    select(c(1:9)) #50
+
+df_corr_genes_up_filter <- df_corr_genes_up[rowSums(df_corr_genes_up==0) <= 6,] #37
+
+df_corr_genes_down <- df_corr_gene_process %>%
+    filter(refGene %in% down_genes) %>%
+    select(c(1:9)) #100
+
+df_corr_genes_down_filter <- df_corr_genes_down[rowSums(df_corr_genes_down==0) <= 6,] #81
+```
+
+Use TEKRABber to calculate correlation
+
+```{r}
+library(TEKRABber)
+
+hm_corr_znf_with_up <- corrOrthologTE(df_corr_kznf, df_corr_genes_up_filter, numCore=2)
+hm_corr_znf_with_up_sig <- hm_corr_znf_with_up %>%
+    filter(pvalue<0.05) %>%
+    filter(abs(coef)>=0.8) #15
+
+hm_corr_znf_with_down <- corrOrthologTE(df_corr_kznf, df_corr_genes_down_filter, numCore=2)
+hm_corr_znf_with_down_sig <- hm_corr_znf_with_down %>%
+    filter(pvalue<0.05) %>%
+    filter(abs(coef)>=0.8) #35
+
+# Save table
+write.table(
+    hm_corr_znf_with_up_sig[,c(1,2,3,4)],
+    file="hm_corr_znf_with_upinNHP_sig.csv")
+
+write.table(
+    hm_corr_znf_with_down_sig[,c(1,2,3,4)],
+    file="hm_corr_znf_with_downinNHP_sig.csv"
+)
+
+```
+
+process and merge dataframe for visualization
+```{r}
+df_up <- read.table("hm_corr_znf_with_upinNHP_sig.csv")
+df_down <- read.table("hm_corr_znf_with_downinNHP_sig.csv")
+
+df_up$exp <- "up-regulated"
+df_down$exp <- "down-regulated"
+
+df_merge <- rbind(df_up, df_down)
+write.csv(df_merge, file="znfs_genes_correlation_forNetwork.csv")
+```
+
