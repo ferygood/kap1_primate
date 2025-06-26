@@ -1,0 +1,99 @@
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+```
+
+
+```{r}
+file_path <- "../../../../motif_dashboard/data/df_dashboard.csv"
+
+df <- read.csv(file_path, row.names = 1)
+```
+
+```{r}
+# split dataframe
+df_h <- df %>% filter(SPECIES=="human") # 509,832
+df_c <- df %>% filter(SPECIES=="chimp") # 49,443
+df_o <- df %>% filter(SPECIES=="orangutan") # 42,811
+```
+
+Generate distribution plot
+```{r}
+df_distribution <- df %>%
+    group_by(SPECIES, GENE, TE) %>%
+    summarise(TE_count = n(), .groups="drop")
+
+df_distribution$log_TE_count <- log2(df_distribution$TE_count)
+df_distribution$SPECIES <- factor(df_distribution$SPECIES,
+                                  levels = c("human", "chimp", "orangutan"))
+
+custom_colors <- c(
+  "human" = "#e7b7b1",      
+  "chimp" = "#c8eaee",      
+  "orangutan" = "#b2beb5"   
+)
+
+
+test_result <- kruskal.test(log_TE_count ~ SPECIES, data = df_distribution)
+p_val <- signif(test_result$p.value, 3)
+
+g <- ggplot(df_distribution, aes(x = log_TE_count, fill = SPECIES)) +
+  geom_density(alpha = 0.6) +
+  scale_fill_manual(values = custom_colors, name=NULL) +
+  theme_bw() +
+  labs(
+    title = "",
+    x = "Log2(TE Count + 1)",
+    y = "Density"
+  ) +
+  annotate("text", 
+           x = Inf, y = Inf, 
+           label = paste("Kruskal-Wallis p =", p_val),
+           hjust = 1.1, vjust = 1.5,
+           size = 5)
+
+ggsave(g, file="../../../figures/motif_te_density.jpg", dpi=200, width=6, height=4)
+
+```
+
+
+
+
+```{r}
+# combine
+df_h_sum <- df_h %>%
+    group_by(GENE, TE) %>%
+    summarise(TE_count = n(), .groups="drop") %>%
+    filter(TE_count > 300) %>%
+    mutate(log_count = log(TE_count)) %>%
+    group_by(GENE) %>%
+    slice_max(order_by = TE_count, n = 5, with_ties = FALSE) %>%
+    ungroup()
+
+df_c_sum <- df_c %>%
+    group_by(GENE, TE) %>%
+    summarise(TE_count = n(), .groups="drop") %>%
+    filter(TE_count > 300) %>%
+    mutate(log_count = log(TE_count)) %>%
+    group_by(GENE) %>%
+    slice_max(order_by = TE_count, n = 5, with_ties = FALSE) %>%
+    ungroup()
+
+df_o_sum <- df_o %>%
+    group_by(GENE, TE) %>%
+    summarise(TE_count = n(), .groups="drop") %>%
+    filter(TE_count > 300) %>%
+    mutate(log_count = log(TE_count)) %>%
+    group_by(GENE) %>%
+    slice_max(order_by = TE_count, n = 5, with_ties = FALSE) %>%
+    ungroup()
+```
+
+```{r}
+# save table
+write.csv(df_h_sum, file = "motif_TE_table/human.csv")
+write.csv(df_c_sum, file = "motif_TE_table/chimp.csv")
+write.csv(df_o_sum, file = "motif_TE_table/oran.csv")
+```
+

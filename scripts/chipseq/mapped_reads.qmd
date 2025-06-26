@@ -1,0 +1,56 @@
+
+Since the number of narrow peaks are different, showing human has less peak,
+we check if there is any difference in mapped reads.
+
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+```{r}
+# Data setup
+# Data from Table S1
+data <- data.frame(
+  species = rep(c("Human", "Chimp", "Orangutan"), each = 6),
+  type = rep(rep(c("ChIP", "INPUT"), each = 3), 3),
+  reads = c(
+    # Human
+    13614595, 48611842, 32657018, 29599543, 61063795, 84108089,
+    # Chimp
+    20795802, 39610439, 35940694, 26519895, 86812515, 82058116,
+    # Orangutan
+    52225164, 18975617, 12755399, 84826795, 63664615, 18637029
+  )
+)
+```
+
+
+```{r}
+# visualization
+ggplot(data, aes(x=species, y=reads, fill=type)) +
+    geom_boxplot(position = position_dodge(0.8)) +
+    scale_y_log10() +
+    labs(title = "Mapped reads by species and type",
+         y = "Mapped Reads (log10)", x = "species") +
+    theme_bw()
+```
+
+```{r}
+# check ChIP reads with one-way ANOVA
+chip_data <- subset(data, type=="ChIP")
+anova_chip <- aov(reads ~ species, data = chip_data)
+summary(anova_chip) # p = 0.948
+```
+```{r}
+# check INPUT reads with one-way ANOVA
+input_data <- subset(data, type == "INPUT")
+anova_input <- aov(reads ~ species, data = input_data)
+summary(anova_input) # p = 0.932
+```
+```{r}
+# check species, type, using two-way ANOVA
+aov_all <- aov(reads ~ species * type, data = data)
+summary(aov_all)
+
+```
+
