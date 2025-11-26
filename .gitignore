@@ -25,3 +25,4 @@ scripts/chipseq/motif_analysis/fimo_output_oran/
 .quarto/
 org.Pabelii.eg.db/
 references/
+peaks/macs3_results/public_data.tar.gz
