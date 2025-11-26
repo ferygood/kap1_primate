@@ -21,3 +21,7 @@ meme_files/
 scripts/chipseq/motif_analysis/fim_out_chimp/
 scripts/chipseq/motif_analysis/fim_out_human/
 scripts/chipseq/motif_analysis/fimo_output_oran/
+
+.quarto/
+org.Pabelii.eg.db/
+references/

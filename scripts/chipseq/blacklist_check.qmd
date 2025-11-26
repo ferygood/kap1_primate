@@ -1,0 +1,51 @@
+# Check overlap between blacklist and human TE reference.
+
+Here we would like to check what is the percentage of the overlap information of our peaks within inside the blacklist of human reference.
+
+1.  The repeat annotation and mappability artifacts are found. (Terry Furey et al.)
+
+2.  From the Boyle-Lab, can download hg19-blacklist.bed.gz, <https://github.com/Boyle-Lab/Blacklist/blob/master/lists/Blacklist_v1/hg19-blacklist.bed.gz>
+
+3.  Paper: The ENCODE Blacklist: Identification of Problematic Regions of the Genome (2019)
+
+4.  bash command
+
+    ``` bash
+    # Calculate intersect bed
+    bedtools intersect -a hg19_rmsk.bed -b hg19-blacklist.bed -wao > hg19_overlap_blacklist_rmsk.bed
+
+    # calculate the sum length of hg19_rmsk.bed
+    awk '{sum += $3 - $2} END {print sum}' hg19_rmsk.bed #1519039925
+
+    # calculate the sum length of hg19-blacklist.bed
+    awk '{sum += $3 - $2} END {print sum}' hg19-blacklist.bed #11588272
+
+    # calculate percentage
+    overlap=$(awk '{sum += $NF} END {print sum}' hg19_overlap_blacklist_rmsk.bed)
+    total=$(awk '{sum += $3 - $2} END {print sum}' hg19_rmsk.bed)
+    echo $(echo "$overlap / $total * 100" | bc -l) #.68739213684590943100
+
+    ```
+
+    So the result is that hg19_rmsk has 0.687% overlap with the blacklist region.
+
+5.  additional information, below are the repeats mention in blacklist
+
+    ``` bash
+    (CATTC)n
+    (GAATG)n
+    (GAGTG)n
+    ACRO1
+    ALR/Alpha
+    BSR/Beta
+    centromeric_repeat
+    chrM
+    High_Mappability_island
+    Low_mappability_island
+    LSU-rRNA_Hsa
+    Satellite_repeat
+    snRNA
+    SSU-rRNA_Hsa
+    TAR1
+    telomeric_repeat
+    ```

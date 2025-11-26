@@ -4,30 +4,24 @@
 library(dplyr)
 ```
 
-How many of the peaks are overlapped?
-
-```{r}
-hm_chimp <- read.table("../../peaks/liftover/human_chimp_overlap.bed", sep='\t')
-hm_chimp_distinct <- hm_chimp %>% distinct() #19
-
-hm_oran <- read.table("../../peaks/liftover/human_oran_overlap.bed", sep='\t')
-hm_oran_distinct <- hm_oran %>% distinct() #820
-
-chimp_oran <- read.table("../../peaks/liftover/chimp_oran_overlap.bed", sep='\t')
-chimp_oran_distinct <- chimp_oran %>% distinct() #178
+## reciprocal steps
+First, because liftOver is strict about column, so it is needed to extract only column 1-6.
+for example
+```{bash}
+cut -f1-6 ../../peaks/macs3_results/human_TE_only.bed > human_TE_only_6col.bed
+cut -f1-6 ../../peaks/macs3_results/chimp_TE_only.bed > chimp_TE_only_6col.bed
+cut -f1-6 ../../peaks/macs3_results/oran_TE_only.bed > oran_TE_only_6col.bed
 ```
 
-```{r}
-hm_chimp_oran <- hm_chimp_distinct %>%
-    select(c(1,2,3,4)) %>%
-    inner_join(hm_oran_distinct[,c(1,2,3,4)], join_by(V4==V4)) #only 2
-```
 
-Let's see what kind of TEs are them:
-```{r}
-human_ref <- read.table("../../peaks/macs3_results/hm_TE.peak", sep='\t')
-hm_chimp_distinct_list <- hm_chimp_distinct$V4
+Here I run a bash script, `reciprocal_comparison.sh`
 
+and the result is
+|     |       |       |        |
+|-----|-------|-------|--------|
+|     | H     | C     | O      |
+| H   | 2,077 | 1     | 17     |
+| C   |       | 5,754 | 0      |
+| O   |       |       | 10,098 |
 
-```
-
+Three-way conserved: 0
