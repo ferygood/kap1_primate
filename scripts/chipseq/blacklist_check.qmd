@@ -24,7 +24,7 @@ Here we would like to check what is the percentage of the overlap information of
     overlap=$(awk '{sum += $NF} END {print sum}' hg19_overlap_blacklist_rmsk.bed)
     total=$(awk '{sum += $3 - $2} END {print sum}' hg19_rmsk.bed)
     echo $(echo "$overlap / $total * 100" | bc -l) #.68739213684590943100
-
+    
     ```
 
     So the result is that hg19_rmsk has 0.687% overlap with the blacklist region.
