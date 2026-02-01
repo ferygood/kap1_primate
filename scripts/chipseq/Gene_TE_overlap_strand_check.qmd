@@ -1,0 +1,111 @@
+# Analyze if genes and TEs are on the same strand
+
+-   Input:
+
+    -   Genes detected from GO terms (**Table S4-1**, **S4-2**, **S4-3**)
+
+        -   including information of start, end, and strand position.
+
+    -   TEs from reference
+
+        -   including information of their start, end, and strand position.
+
+-   Output:
+
+    -   Overlap of Genes and TEs with their strand information
+## load library
+```{r}
+library(dplyr)
+library(data.table)
+library(GenomicRanges)
+library(ggplot2)
+
+# remeber to source script src/analyze_gene_te_peak_interaction.R
+```
+
+## 1 Read input data
+
+``` {r}
+# path of data
+# human peak
+hm_peak <- read.table("/Users/yaochung41/Desktop/phd/kap1_primate/peaks/human_annotated_peaks.txt", sep='\t', header=T)
+chimp_peak <- read.table("/Users/yaochung41/Desktop/phd/kap1_primate/peaks/chimp_annotated_peaks.txt", sep='\t', header=T)
+oran_peak <- read.table("/Users/yaochung41/Desktop/phd/kap1_primate/peaks/oran_annotated_peaks.txt", sep='\t', header=T)
+
+# gene name
+hm_gene <- read.table("~/Downloads/TableS4-1.tsv", sep='\t', header=T)
+chimp_gene <- read.table("~/Downloads/TableS4-2.tsv", sep='\t', header=T)
+oran_gene <- read.table("~/Downloads/TableS4-3.tsv", sep='\t', header=T, quote="", fill=TRUE, comment.char="")
+
+# gene reference
+# HGNC track
+#hm_gene_ref <- fread("~/Downloads/hg19_gene_reference.tsv")
+hm_gene_ref <- fread("~/Downloads/hg19_gene_reference.tsv")
+hm_gene_ref <- hm_gene_ref %>% select(c("ensembl_gene_id", '#chrom', "strand", "chromStart", "chromEnd"))
+
+# chimp data
+chimp_gene_ref <- fread("~/Downloads/panTro4_gene_reference.tsv")
+chimp_map      <- fread("~/Downloads/panTro4_TtoG.tsv")
+chimp_ref_final <- merge(
+  chimp_gene_ref[, .(transcript = name, `#chrom` = chrom, strand, chromStart = txStart, chromEnd = txEnd)], 
+  chimp_map[, .(transcript, gene_id = `#gene`)], 
+  by = "transcript", 
+  all.x = TRUE
+)[, `:=`(
+  ensembl_gene_id = substr(gene_id, 1, 18), # Clean ID
+  transcript = NULL,                        # Remove temporary transcript ID
+  gene_id = NULL                            # Remove temporary gene_id
+)]
+
+# orangutan
+oran_gene_ref <- fread("~/Downloads/ponAbe2_gene_reference.tsv")
+oran_map      <- fread("~/Downloads/ponAbe2_TtoG.tsv")
+
+oran_ref_final <- merge(
+  oran_gene_ref[, .(transcript = name, `#chrom` = chrom, strand, chromStart = txStart, chromEnd = txEnd)], 
+  oran_map[, .(transcript, gene_id = `#gene`)], 
+  by = "transcript", 
+  all.x = TRUE
+)[, `:=`(
+  ensembl_gene_id = substr(gene_id, 1, 18), # Convert to Gene ID and clean to 18 chars
+  transcript = NULL,                        # Cleanup temp columns
+  gene_id = NULL
+)]
+
+
+# TE reference
+hm_TE_ref <- fread("~/Downloads/hg19_TE_reference.tsv")
+chimp_TE_ref <- fread("~/Downloads/panTro4_TE_reference.tsv")
+oran_TE_ref <- fread("~/Downloads/ponAbe2_TE_reference.tsv")
+```
+
+Test
+
+```{r}
+human_result <- analyze_gene_te_peak_intersection(
+    peak_data = hm_peak,
+    gene_list = hm_gene,
+    gene_ref = hm_gene_ref,
+    te_ref = hm_TE_ref
+)
+```
+
+
+```{r}
+chimp_result <- analyze_gene_te_peak_intersection(
+    peak_data = chimp_peak,
+    gene_list = chimp_gene,
+    gene_ref = chimp_ref_final,
+    te_ref = chimp_TE_ref
+)
+```
+
+
+```{r}
+oran_result <- analyze_gene_te_peak_intersection(
+    peak_data = oran_peak,
+    gene_list = oran_gene,
+    gene_ref = oran_ref_final,
+    te_ref = oran_TE_ref
+)
+```
