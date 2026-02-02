@@ -1,0 +1,21 @@
+repFamily	Antisense	Sense	total	antisense_prop	p_value	sig	preference
+L1	199	70	269	0.739776951672863	1.68541166391148e-15	*	Antisense Bias
+MaLR	28	5	33	0.848484848484849	6.61876983940602e-05	*	Antisense Bias
+MER2_type	26	15	41	0.634146341463415	0.117275205957413	ns	Antisense Bias
+ERV1	14	7	21	0.666666666666667	0.189247131347656	ns	Antisense Bias
+AcHobo	4	1	5	0.8	0.375	ns	Antisense Bias
+CR1	5	9	14	0.357142857142857	0.4239501953125	ns	Sense Bias
+Mariner	5	2	7	0.714285714285714	0.453125	ns	Antisense Bias
+hAT?	0	2	2	0	0.5	ns	Sense Bias
+tRNA	2	0	2	1	0.5	ns	Antisense Bias
+Alu	68	61	129	0.527131782945736	0.597484999305873	ns	Antisense Bias
+MER1_type	38	33	71	0.535211267605634	0.635307642087667	ns	Antisense Bias
+MIR	74	80	154	0.48051948051948	0.687149218768654	ns	Sense Bias
+ERVL	5	3	8	0.625	0.7265625	ns	Antisense Bias
+L2	48	45	93	0.516129032258065	0.835846134631486	ns	Antisense Bias
+DNA	2	1	3	0.666666666666667	1	ns	Antisense Bias
+RTE	5	6	11	0.454545454545455	1	ns	Sense Bias
+Tc2	0	1	1	0	1	ns	Sense Bias
+TcMar	2	2	4	0.5	1	ns	No Bias
+Tigger	1	0	1	1	1	ns	Antisense Bias
+Tip100	2	1	3	0.666666666666667	1	ns	Antisense Bias

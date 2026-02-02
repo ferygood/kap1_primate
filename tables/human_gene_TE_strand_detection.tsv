@@ -1,0 +1,13 @@
+repFamily	Antisense	Sense	total	antisense_prop	p_value	sig	preference
+hAT-Charlie	1	5	6	0.166666666666667	0.21875	ns	Sense Bias
+L1	9	5	14	0.642857142857143	0.4239501953125	ns	Antisense Bias
+MIR	5	9	14	0.357142857142857	0.4239501953125	ns	Sense Bias
+hAT	2	0	2	1	0.5	ns	Antisense Bias
+Alu	2	2	4	0.5	1	ns	No Bias
+ERVL	0	1	1	0	1	ns	Sense Bias
+Gypsy?	1	0	1	1	1	ns	Antisense Bias
+L2	4	3	7	0.571428571428571	1	ns	Antisense Bias
+RTE	1	0	1	1	1	ns	Antisense Bias
+RTE-BovB	1	0	1	1	1	ns	Antisense Bias
+hAT-Tip100	1	0	1	1	1	ns	Antisense Bias
+hAT?	1	0	1	1	1	ns	Antisense Bias

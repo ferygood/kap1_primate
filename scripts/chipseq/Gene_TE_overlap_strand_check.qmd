@@ -12,20 +12,21 @@
 
 -   Output:
 
-    -   Overlap of Genes and TEs with their strand information
-## load library
-```{r}
-library(dplyr)
-library(data.table)
-library(GenomicRanges)
-library(ggplot2)
+    -   Overlap of Genes and TEs with their strand information \## load library
 
-# remeber to source script src/analyze_gene_te_peak_interaction.R
-```
+    ```{r}
+    library(dplyr)
+    library(data.table)
+    library(GenomicRanges)
+    library(ggplot2)
+    library(patchwork)
+
+    # remeber to source script src/analyze_gene_te_peak_interaction.R
+    ```
 
 ## 1 Read input data
 
-``` {r}
+```{r}
 # path of data
 # human peak
 hm_peak <- read.table("/Users/yaochung41/Desktop/phd/kap1_primate/peaks/human_annotated_peaks.txt", sep='\t', header=T)
@@ -90,7 +91,6 @@ human_result <- analyze_gene_te_peak_intersection(
 )
 ```
 
-
 ```{r}
 chimp_result <- analyze_gene_te_peak_intersection(
     peak_data = chimp_peak,
@@ -100,7 +100,6 @@ chimp_result <- analyze_gene_te_peak_intersection(
 )
 ```
 
-
 ```{r}
 oran_result <- analyze_gene_te_peak_intersection(
     peak_data = oran_peak,
@@ -108,4 +107,98 @@ oran_result <- analyze_gene_te_peak_intersection(
     gene_ref = oran_ref_final,
     te_ref = oran_TE_ref
 )
+```
+
+```{r}
+# save table
+write.table(human_result$data, "tables/human_gene_TE_strand.tsv", sep='\t', quote=FALSE, row.names=FALSE, col.names=TRUE)
+write.table(chimp_result$data, "tables/chimp_gene_TE_strand.tsv", sep='\t', quote=FALSE, row.names=FALSE, col.names=TRUE)
+write.table(oran_result$data, "tables/oran_gene_TE_strand.tsv", sep='\t', quote=FALSE, row.names=FALSE, col.names=TRUE)
+
+```
+At this stage, we can know use a table to write the number of antisense and sense:
+
+|                |           |                |
+|----------------|-----------|----------------|
+|                | **Sense** | **Anti-Sense** |
+| **human**      | 25        | 26             |
+| **chimpanzee** | 357       | 452            |
+| **orangutan**  | 344       | 528            |
+
+Next, calculate the distribution of TE subfamily that are related to antisense and sense.
+Remeber to source `analyze_te_strand_distribution.R`
+
+```{r}         
+# add back repFamily and repClass information
+# human
+human_class_res <- analyze_te_strand_distribution(human_result$data, hm_TE_ref, "Human", group_by_var = "repClass")
+print(human_class_res$plot)
+
+human_family_res <- analyze_te_strand_distribution(human_result$data, hm_TE_ref, "Human", group_by_var = "repFamily", min_count = 1)
+print(human_family_res$plot)
+
+human_family_pref <- analyze_te_strand_preference(human_family_res$extended_data, group_by_var = "repFamily")
+head(human_family_pref)
+
+```
+
+```{r}
+# add back repFamily and repClass information
+# chimpanzee
+chimp_class_res <- analyze_te_strand_distribution(chimp_result$data, chimp_TE_ref, "Chimpanzee", group_by_var = "repClass")
+print(chimp_class_res$plot)
+
+chimp_family_res <- analyze_te_strand_distribution(chimp_result$data, chimp_TE_ref, "Chimpanzee", group_by_var = "repFamily", min_count = 1)
+print(chimp_family_res$plot)
+
+chimp_family_pref <- analyze_te_strand_preference(chimp_family_res$extended_data, group_by_var = "repFamily")
+head(chimp_family_pref)
+```
+
+
+```{r}
+# add back repFamily and repClass information
+# orangutan
+oran_class_res <- analyze_te_strand_distribution(oran_result$data, oran_TE_ref, "Orangutan", group_by_var = "repClass")
+print(oran_class_res$plot)
+
+oran_family_res <- analyze_te_strand_distribution(oran_result$data, oran_TE_ref, "Orangutan", group_by_var = "repFamily", min_count = 1)
+print(oran_family_res$plot)
+
+oran_family_pref <- analyze_te_strand_preference(oran_family_res$extended_data, group_by_var = "repFamily")
+head(oran_family_pref)
+```
+
+Save detection
+
+```{r}
+write.table(human_family_pref, "tables/human_gene_TE_strand_detection.tsv", sep='\t', quote=FALSE, row.names=FALSE, col.names=TRUE)
+write.table(chimp_family_pref, "tables/chimpanzee_gene_TE_strand_detection.tsv", sep='\t', quote=FALSE, row.names=FALSE, col.names=TRUE)
+write.table(oran_family_pref, "tables/oran_gene_TE_strand_detection.tsv", sep='\t', quote=FALSE, row.names=FALSE, col.names=TRUE)
+
+```
+
+```{r}
+combined_plot <- (
+  (human_class_res$plot | human_family_res$plot) /
+  (chimp_class_res$plot | chimp_family_res$plot) /
+  (oran_class_res$plot  | oran_family_res$plot)
+) + 
+  plot_layout(guides = 'collect') & # merge repeat plot
+  theme(legend.position = "bottom")
+
+print(combined_plot)
+```
+
+
+```{r}
+combined_plot <- combined_plot + 
+  plot_annotation(
+    title = "Comparative Analysis of TE Strand Detection",
+    subtitle = "Class and Family Level",
+    tag_levels = 'A' # add A, B, C, D, E, F tag for figures
+  )
+
+print(combined_plot)
+ggsave("figures/TE_Strand_Comparison.pdf", combined_plot, width = 12, height = 18)
 ```
